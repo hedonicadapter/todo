@@ -65,4 +65,13 @@ App URL: `https://azure-todo.<tailnet>.ts.net`. Install as PWA once per device.
 
 ## Keyboard
 
-`n` new · `j`/`k` select · `space` toggle · `e`/`Enter` edit · `d` delete · `J`/`K` reorder · `Esc` clear
+`n` new · `j`/`k` select · `space` toggle · `e`/`Enter` edit · `t` due · `r` repeat · `d` delete · `J`/`K` reorder · `Esc` clear
+
+## Repeats and late
+
+A todo can repeat (daily, every other day, weekdays, weekly, monthly, …; stored as an RRULE
+subset in `repeat`). Completing a repeating todo doesn't mark it done: `due` moves to the next
+occurrence *after the current due date*, so a daily task finished three days late is still
+two days late afterwards. Clear the repeat to finish it for good.
+
+Open todos past their due date get a red "N days late" pill and a red edge.

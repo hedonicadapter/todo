@@ -105,8 +105,8 @@ ul.list.empty::after {
 }
 li.todo {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  align-items: center;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
   gap: 10px;
   padding: 10px 6px;
   border-bottom: 1px solid var(--line);
@@ -123,10 +123,17 @@ li.todo.pending {
 li.todo input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  margin: 0;
+  margin: 3px 0 0;
   accent-color: var(--accent);
 }
+li.todo.repeating input[type="checkbox"] {
+  border-radius: 50%;
+}
+li.todo .main {
+  min-width: 0;
+}
 li.todo .title {
+  display: block;
   cursor: text;
   overflow-wrap: anywhere;
   padding: 2px 0;
@@ -136,20 +143,60 @@ li.todo.done .title {
   text-decoration: line-through;
 }
 li.todo .title-edit {
+  display: block;
   width: 100%;
   padding: 2px 4px;
   border-bottom: 1px solid var(--accent);
 }
-li.todo .due {
+li.todo .meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 2px;
+  font-size: 0.8rem;
   color: var(--muted);
-  font-size: 0.85rem;
-  width: 7.5em;
-  padding: 2px 0;
+}
+li.todo .meta input,
+li.todo .meta select {
+  font-size: inherit;
+  color: inherit;
+  padding: 1px 0;
+}
+li.todo .meta select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+li.todo .meta select:not(:focus) {
+  width: auto;
 }
 li.todo .due::-webkit-calendar-picker-indicator {
   opacity: 0.5;
 }
-li.todo .due.overdue {
+li.todo .repeat {
+  color: var(--muted);
+}
+li.todo.repeating .repeat {
+  color: var(--fg);
+}
+/* Late: red pill + red date, row accent on the left edge. */
+li.todo .late-pill:empty {
+  display: none;
+}
+li.todo .late-pill {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  border-radius: 999px;
+  padding: 0 8px;
+  font-weight: 600;
+}
+li.todo.late {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+li.todo.late .due {
   color: var(--danger);
 }
 li.todo .del {
@@ -157,7 +204,7 @@ li.todo .del {
   color: var(--muted);
   font-size: 1.2rem;
   line-height: 1;
-  padding: 2px 8px;
+  padding: 0 8px;
 }
 li.todo .del:hover {
   color: var(--danger);

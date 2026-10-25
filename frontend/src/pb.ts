@@ -6,7 +6,11 @@ export interface Todo extends RecordModel {
   due: string; // "" or PocketBase datetime string
   order: number;
   owner: string;
+  repeat: string; // "" or RRULE subset, see recur.ts
 }
+
+// PocketBase date fields want "YYYY-MM-DD HH:MM:SS.sssZ"; due is date-only.
+export const toPbDate = (ymd: string): string => (ymd ? `${ymd.slice(0, 10)} 00:00:00.000Z` : "");
 
 // Prod: same origin (PocketBase serves the built frontend). Dev: vite proxies /api.
 const url = import.meta.env.VITE_PB_URL ?? window.location.origin;

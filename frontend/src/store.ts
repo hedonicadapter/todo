@@ -1,7 +1,8 @@
-import { authId, isAuthError, logout, pb, todosCollection, type Todo } from "./pb";
+import { authId, isAuthError, logout, pb, toPbDate, todosCollection, type Todo } from "./pb";
+import { nextOccurrence, parseRule, today } from "./recur";
 
 type Listener = () => void;
-type Patch = Partial<Pick<Todo, "title" | "done" | "due" | "order">>;
+type Patch = Partial<Pick<Todo, "title" | "done" | "due" | "order" | "repeat">>;
 
 const SORT = "done,order,due";
 
@@ -100,6 +101,7 @@ export class Store {
       due: "",
       order,
       owner: authId(),
+      repeat: "",
     } as Todo);
     this.emit();
     try {
@@ -134,9 +136,25 @@ export class Store {
     }
   }
 
+  // Completing a repeating todo advances `due` (next occurrence after the
+  // due date, not after today) and leaves it open. Unchecking is a no-op for them.
   toggle(id: string): Promise<void> {
     const t = this.get(id);
-    return t ? this.patch(id, { done: !t.done }) : Promise.resolve();
+    if (!t) return Promise.resolve();
+    const rule = parseRule(t.repeat);
+    if (rule && !t.done) {
+      return this.patch(id, { due: toPbDate(nextOccurrence(t.due || today(), rule)) });
+    }
+    return this.patch(id, { done: !t.done });
+  }
+
+  // Setting a repeat on a todo without a due date anchors it to today.
+  setRepeat(id: string, repeat: string): Promise<void> {
+    const t = this.get(id);
+    if (!t) return Promise.resolve();
+    const data: Patch = { repeat };
+    if (repeat && !t.due) data.due = toPbDate(today());
+    return this.patch(id, data);
   }
 
   async remove(id: string): Promise<void> {

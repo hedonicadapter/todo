@@ -1,4 +1,5 @@
-import { errorMessage, login, logout, type Todo } from "./pb";
+import { errorMessage, login, logout, toPbDate, type Todo } from "./pb";
+import { PRESETS, describeRule, lateLabel } from "./recur";
 import type { Store } from "./store";
 
 function h<K extends keyof HTMLElementTagNameMap>(
@@ -13,7 +14,6 @@ function h<K extends keyof HTMLElementTagNameMap>(
 }
 
 const dateOnly = (due: string) => (due ? due.slice(0, 10) : "");
-const toPbDate = (ymd: string) => (ymd ? `${ymd} 00:00:00.000Z` : "");
 
 export function renderLogin(root: HTMLElement): void {
   root.replaceChildren();
@@ -54,7 +54,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     addForm,
     list,
     status,
-    h("p", { class: "hint" }, "n new · j/k move · space done · e edit · d delete · J/K reorder"),
+    h("p", { class: "hint" }, "n new · j/k move · space done · e edit · t due · r repeat · d delete · J/K reorder"),
   );
 
   let selected: string | null = null;
@@ -81,32 +81,62 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     const title = h("span", { class: "title" });
     title.addEventListener("click", () => startEdit(t.id));
 
+    const late = h("span", { class: "late-pill" });
+
     const due = h("input", { type: "date", class: "due", "aria-label": "due" });
     due.addEventListener("change", () => run(store.patch(t.id, { due: toPbDate(due.value) })));
+
+    const repeat = h("select", { class: "repeat", "aria-label": "repeat" });
+    for (const p of PRESETS) repeat.append(h("option", { value: p.value }, p.label));
+    repeat.addEventListener("change", () => run(store.setRepeat(t.id, repeat.value)));
 
     const del = h("button", { class: "del", type: "button", "aria-label": "delete" }, "×");
     del.addEventListener("click", () => run(store.remove(t.id)));
 
-    const li = h("li", { class: "todo", "data-id": t.id }, check, title, due, del);
+    const li = h(
+      "li",
+      { class: "todo", "data-id": t.id },
+      check,
+      h("div", { class: "main" }, title, h("div", { class: "meta" }, late, due, repeat)),
+      del,
+    );
     li.addEventListener("pointerdown", () => select(t.id));
     attachSwipe(li, () => run(store.remove(t.id)));
     return li;
   }
 
   function update(li: HTMLLIElement, t: Todo): void {
+    const d = dateOnly(t.due);
+    const lateText = t.done ? "" : lateLabel(d);
     li.classList.toggle("done", t.done);
     li.classList.toggle("selected", t.id === selected);
     li.classList.toggle("pending", t.id.startsWith("tmp-"));
+    li.classList.toggle("late", !!lateText);
+    li.classList.toggle("repeating", !!t.repeat);
+
     const check = li.querySelector<HTMLInputElement>("input[type=checkbox]")!;
     if (check.checked !== t.done) check.checked = t.done;
+    check.title = t.repeat ? `done for now → next ${describeRule(t.repeat)}` : "";
+
     if (editing !== t.id) {
       const title = li.querySelector<HTMLSpanElement>(".title")!;
       if (title.textContent !== t.title) title.textContent = t.title;
     }
+
+    const late = li.querySelector<HTMLSpanElement>(".late-pill")!;
+    if (late.textContent !== lateText) late.textContent = lateText;
+
     const due = li.querySelector<HTMLInputElement>(".due")!;
-    const d = dateOnly(t.due);
     if (due.value !== d) due.value = d;
-    due.classList.toggle("overdue", !!d && !t.done && d < new Date().toISOString().slice(0, 10));
+
+    const repeat = li.querySelector<HTMLSelectElement>(".repeat")!;
+    if (repeat.value !== t.repeat) {
+      // Unknown (custom) rule: add it as an option so it isn't lost.
+      if (t.repeat && !PRESETS.some((p) => p.value === t.repeat)) {
+        repeat.append(h("option", { value: t.repeat }, describeRule(t.repeat) || t.repeat));
+      }
+      repeat.value = t.repeat;
+    }
   }
 
   function render(): void {
@@ -175,9 +205,24 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     input.select();
   }
 
+  function focusField(cls: string): void {
+    const el = rows.get(selected ?? "")?.querySelector<HTMLElement>(cls);
+    if (!el) return;
+    el.focus();
+    if (el instanceof HTMLInputElement && "showPicker" in el) {
+      try {
+        el.showPicker();
+      } catch {
+        /* needs user gesture in some browsers; focus is enough */
+      }
+    }
+  }
+
   function onKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement | null;
-    const inField = !!target && (target instanceof HTMLInputElement || target.isContentEditable);
+    const inField =
+      !!target &&
+      (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target.isContentEditable);
     if (inField) {
       if (e.key === "Escape") target.blur();
       return;
@@ -214,6 +259,12 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
       case "Enter":
         if (selected) startEdit(selected);
         break;
+      case "t":
+        focusField(".due");
+        break;
+      case "r":
+        focusField(".repeat");
+        break;
       case "J":
         if (selected) run(store.move(selected, 1));
         break;
@@ -233,13 +284,17 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
   const unsub = store.onChange(render);
   render();
 
+  // Late pills depend on the clock; refresh at midnight and on resume.
+  const tick = setInterval(render, 60_000);
+
   return () => {
     document.removeEventListener("keydown", onKey);
+    clearInterval(tick);
     unsub();
   };
 }
 
-// Swipe left ≥ 80px → delete. Pointer events only on touch to leave mouse alone.
+// Swipe left ≥ 80px → delete. Touch only; mouse untouched.
 function attachSwipe(li: HTMLElement, onDelete: () => void): void {
   let startX = 0;
   let dx = 0;
