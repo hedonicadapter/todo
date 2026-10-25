@@ -1,0 +1,205 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f6f6f4;
+  --fg: #1a1a1a;
+  --muted: #7a7a76;
+  --line: #e2e2de;
+  --accent: #1a1a1a;
+  --danger: #c0392b;
+  --sel: #ecece8;
+  --radius: 10px;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141414;
+    --fg: #e8e8e4;
+    --muted: #8a8a86;
+    --line: #2a2a2a;
+    --accent: #e8e8e4;
+    --danger: #e06c5a;
+    --sel: #1f1f1f;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-tap-highlight-color: transparent;
+}
+#app {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 8px 0 12px;
+}
+h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+button.ghost {
+  border-color: transparent;
+  color: var(--muted);
+  padding: 2px 6px;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+}
+
+form.add input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg) 92%, var(--fg));
+}
+form.add input::placeholder {
+  color: var(--muted);
+}
+
+ul.list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+ul.list.empty::after {
+  content: "nothing to do";
+  display: block;
+  padding: 24px 0;
+  color: var(--muted);
+  text-align: center;
+}
+li.todo {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 6px;
+  transition: transform 80ms ease-out;
+  touch-action: pan-y;
+}
+li.todo.selected {
+  background: var(--sel);
+}
+li.todo.pending {
+  opacity: 0.6;
+}
+li.todo input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+li.todo .title {
+  cursor: text;
+  overflow-wrap: anywhere;
+  padding: 2px 0;
+}
+li.todo.done .title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+li.todo .title-edit {
+  width: 100%;
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--accent);
+}
+li.todo .due {
+  color: var(--muted);
+  font-size: 0.85rem;
+  width: 7.5em;
+  padding: 2px 0;
+}
+li.todo .due::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+}
+li.todo .due.overdue {
+  color: var(--danger);
+}
+li.todo .del {
+  border: none;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 2px 8px;
+}
+li.todo .del:hover {
+  color: var(--danger);
+}
+@media (pointer: fine) {
+  li.todo .del {
+    opacity: 0;
+  }
+  li.todo:hover .del,
+  li.todo.selected .del {
+    opacity: 1;
+  }
+}
+
+form.login {
+  display: grid;
+  gap: 10px;
+  max-width: 320px;
+  margin: 20vh auto 0;
+}
+form.login input {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.error {
+  color: var(--danger);
+  min-height: 1.2em;
+  margin: 0;
+}
+.status {
+  color: var(--danger);
+  min-height: 1.2em;
+  font-size: 0.9rem;
+}
+.hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+@media (pointer: coarse) {
+  .hint {
+    display: none;
+  }
+}

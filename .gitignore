@@ -1,0 +1,6 @@
+pb_data/
+result
+result-*
+.direnv/
+frontend/node_modules/
+frontend/dist/
