@@ -71,7 +71,7 @@ App URL: `https://azure-todo.<tailnet>.ts.net`. Install as PWA once per device.
 
 A todo can repeat (daily, every other day, weekdays, weekly, monthly, …; stored as an RRULE
 subset in `repeat`). Completing a repeating todo doesn't mark it done: `due` moves to the next
-occurrence *after the current due date*, so a daily task finished three days late is still
-two days late afterwards. Clear the repeat to finish it for good.
+occurrence *after today* (the completion date), so a late task catches up in one tick and an
+early one still waits a full period. Clear the repeat to finish it for good.
 
 Open todos past their due date get a red "N days late" pill and a red edge.

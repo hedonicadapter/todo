@@ -210,7 +210,7 @@ nix run nixpkgs#pocketbase -- migrate collections
   rather than copying the live `data.db`.
 - `manifest.webmanifest` and `sw.js` live in `frontend/public/` (Vite copies them verbatim).
 - **Recurrence added after v1 scope** (user request): `repeat` text field (migration 2) holding an
-  RRULE subset; `frontend/src/recur.ts` computes the next occurrence from the *due date*
-  (one step, month-end clamped, UTC calendar days). Completing a repeating todo advances `due`
+  RRULE subset; `frontend/src/recur.ts` computes the next occurrence from the *completion date*
+  (today; one step, month-end clamped, UTC calendar days). Completing a repeating todo advances `due`
   and keeps `done = false`. Late = open and `due` < today; shown as a pill with day/week/month
   granularity.

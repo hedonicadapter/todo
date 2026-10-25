@@ -136,14 +136,15 @@ export class Store {
     }
   }
 
-  // Completing a repeating todo advances `due` (next occurrence after the
-  // due date, not after today) and leaves it open. Unchecking is a no-op for them.
+  // Completing a repeating todo advances `due` to the next occurrence after
+  // today (completion date, not due date) and leaves it open. A late task
+  // therefore catches up in one tick. Unchecking is a no-op for them.
   toggle(id: string): Promise<void> {
     const t = this.get(id);
     if (!t) return Promise.resolve();
     const rule = parseRule(t.repeat);
     if (rule && !t.done) {
-      return this.patch(id, { due: toPbDate(nextOccurrence(t.due || today(), rule)) });
+      return this.patch(id, { due: toPbDate(nextOccurrence(today(), rule)) });
     }
     return this.patch(id, { done: !t.done });
   }
