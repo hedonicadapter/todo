@@ -45,23 +45,88 @@ secrets/             agenix recipients + encrypted secrets
 
 ## Deploy (Azure)
 
-One-time, see PLAN.md for the reasoning:
+Do the first install from the NixOS PC. A Mac works for later deploys once it has a
+Linux builder (`nix.linux-builder.enable = true` in nix-darwin); the VM is x86_64-linux and
+never builds anything itself.
 
-1. `az vm create …` (commands in PLAN.md). Note the public IP.
-2. Put your public key in `hosts/azure/default.nix` and `secrets/secrets.nix`.
-3. Create secrets (from `secrets/`): `agenix -e todo.age` (32-char key, e.g.
-   `openssl rand -hex 16`), `tailscale.age`, `restic-env.age`, `restic-password.age`.
-4. `nixos-anywhere --flake .#azure root@<ip>` — kexec installer, disko, install.
-   If kexec runs out of memory on B2ats_v2, install on B1ms and resize down.
-5. `ssh-keyscan -t ed25519 <ip>` → add the host key to `secrets/secrets.nix`, `agenix -r`,
-   then `nix run .#deploy` so the VM can decrypt its secrets.
-6. Remove the SSH rule from the NSG; SSH goes over the tailnet from now on.
+### 1. Keys
 
-Every later change: `nix run .#deploy` (builds on your machine, pushes the closure).
-On a Mac this needs a Linux builder (`nix.linux-builder` in nix-darwin) since the VM
-is x86_64-linux and never builds anything itself.
+```
+ssh-keygen -t ed25519 -N '' -C azure-todo -f ~/.ssh/azure-todo          # your key
+mkdir -p /tmp/azure-todo/etc/ssh
+ssh-keygen -t ed25519 -N '' -C root@azure-todo \
+  -f /tmp/azure-todo/etc/ssh/ssh_host_ed25519_key                        # VM host key, pre-generated
+```
 
-App URL: `https://azure-todo.<tailnet>.ts.net`. Install as PWA once per device.
+Put `~/.ssh/azure-todo.pub` in `hosts/azure/default.nix` (`authorizedKeys`) and as `sam` in
+`secrets/secrets.nix`; put `/tmp/azure-todo/etc/ssh/ssh_host_ed25519_key.pub` as `azure-todo`.
+Pre-generating the host key lets the VM decrypt its secrets on first boot.
+
+### 2. Secrets
+
+```
+cd secrets
+agenix -i ~/.ssh/azure-todo -e todo.age             # openssl rand -hex 16
+agenix -i ~/.ssh/azure-todo -e tailscale.age        # tskey-auth-… (reusable, pre-authorized, tag:server)
+agenix -i ~/.ssh/azure-todo -e restic-password.age  # any long string, keep a copy
+agenix -i ~/.ssh/azure-todo -e restic-env.age       # AZURE_ACCOUNT_NAME=…  AZURE_ACCOUNT_KEY=…  (two lines)
+cd ..
+```
+
+Blob storage for the backups (name must be globally unique, lowercase):
+
+```
+az storage account create -g rg-todo -n sttodobackups -l swedencentral --sku Standard_LRS --kind StorageV2
+az storage container create --account-name sttodobackups -n todo-backups
+az storage account keys list -g rg-todo -n sttodobackups --query '[0].value' -o tsv
+```
+
+### 3. VM
+
+```
+az group create -n rg-todo -l swedencentral
+az vm create -g rg-todo -n azure-todo \
+  --image Ubuntu2404 --size Standard_B2ats_v2 \
+  --os-disk-size-gb 32 --storage-sku StandardSSD_LRS \
+  --admin-username nixos --ssh-key-values ~/.ssh/azure-todo.pub \
+  --public-ip-sku Standard --nsg-rule SSH
+```
+
+Note the public IP.
+
+### 4. Install NixOS
+
+```
+nix develop
+nixos-anywhere --flake .#azure --extra-files /tmp/azure-todo -i ~/.ssh/azure-todo nixos@<ip>
+```
+
+kexec, disko, install, reboot into NixOS. If kexec dies for lack of RAM (B2ats_v2 has 1 GiB):
+`az vm resize -g rg-todo -n azure-todo --size Standard_B2als_v2`, install, resize back.
+
+### 5. First boot
+
+```
+ssh -i ~/.ssh/azure-todo root@<ip> systemctl status todo tailscaled tailscale-serve
+```
+
+App: `https://azure-todo.<tailnet>.ts.net`. Create the superuser via the one-time link
+(`journalctl -u todo | grep pbinstal`, swap the host for the tailnet URL) or:
+
+```
+ssh root@azure-todo   # over the tailnet; Tailscale SSH is on
+PB_ENCRYPTION_KEY=$(cat /run/agenix/todo) sudo -u todo --preserve-env=PB_ENCRYPTION_KEY \
+  pocketbase --dir /var/lib/todo --encryptionEnv PB_ENCRYPTION_KEY superuser upsert you@example.com 'pw'
+```
+
+Then in the dashboard create your app user (Collections → users). Finally close the public
+port: `az network nsg rule delete -g rg-todo --nsg-name azure-todoNSG -n default-allow-ssh`.
+
+### Afterwards
+
+Every change: `nix run .#deploy` (builds locally, pushes the closure, switches). Override the
+target with `TODO_TARGET=root@<ip>`. Migrations apply on service restart. Backups run nightly
+at 03:17; `restic -r azure:todo-backups:/ snapshots` on the VM to check.
 
 ## Keyboard
 

@@ -144,6 +144,7 @@ in
 
   # --- misc --------------------------------------------------------------------
   environment.systemPackages = [
+    config.services.todo.package # `pocketbase` CLI on the box (superuser upsert, migrate)
     pkgs.sqlite
     pkgs.restic
   ];
