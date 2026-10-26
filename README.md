@@ -88,13 +88,17 @@ az storage account keys list -g rg-todo -n sttodobackups --query '[0].value' -o 
 ```
 az group create -n rg-todo -l swedencentral
 az vm create -g rg-todo -n azure-todo \
-  --image Ubuntu2404 --size Standard_B2ats_v2 \
+  --image Ubuntu2404 --size Standard_B2ats_v2 --security-type Standard \
   --os-disk-size-gb 32 --storage-sku StandardSSD_LRS \
   --admin-username nixos --ssh-key-values ~/.ssh/azure-todo.pub \
   --public-ip-sku Standard --nsg-rule SSH
 ```
 
-Note the public IP.
+`--security-type Standard` matters: the default is Trusted Launch with Secure Boot, which
+refuses to kexec (and later boot) an unsigned NixOS kernel. On an existing VM:
+`az vm deallocate …`, `az vm update … --set securityProfile.uefiSettings.secureBootEnabled=false`,
+`az vm start …`. If the size is out of capacity (`AllocationFailed`), `Standard_B2ts_v2` is the
+Intel twin. Note the public IP.
 
 ### 4. Install NixOS
 
