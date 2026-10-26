@@ -96,8 +96,9 @@
             pkgs.nixos-rebuild
             agenix.packages.${pkgs.stdenv.hostPlatform.system}.default
           ]
-          ++ pkgs.lib.optionals (!pkgs.stdenv.hostPlatform.isDarwin) [ pkgs.nixos-anywhere ]
-          ++ pkgs.lib.optionals (pkgs.stdenv.hostPlatform.isx86_64) [ pkgs.azure-cli ];
+          # azure-cli deliberately not included: a second `az` shadowing the system one
+          # corrupts ~/.azure's pickled msal cache. Use the one you have.
+          ++ pkgs.lib.optionals (!pkgs.stdenv.hostPlatform.isDarwin) [ pkgs.nixos-anywhere ];
         };
       });
 

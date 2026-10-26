@@ -45,7 +45,8 @@ secrets/             agenix recipients + encrypted secrets
 
 ## Deploy (Azure)
 
-Do the first install from the NixOS PC. A Mac works for later deploys once it has a
+Do the first install from the NixOS PC. `az` must be installed on the system (it's not in the
+dev shell on purpose: two `az` versions sharing `~/.azure` break each other's cache). A Mac works for later deploys once it has a
 Linux builder (`nix.linux-builder.enable = true` in nix-darwin); the VM is x86_64-linux and
 never builds anything itself.
 
