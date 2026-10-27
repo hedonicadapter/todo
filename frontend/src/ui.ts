@@ -46,15 +46,28 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
   const addForm = h("form", { class: "add" }, addInput);
   const list = h("ul", { class: "list" });
   const status = h("p", { class: "status", role: "status" });
+
+  const sortBtn = h("button", { class: "ghost sort", type: "button" });
+  const sortLabel = () => (sortBtn.textContent = `sort: ${store.sortMode}`);
+  sortLabel();
+  sortBtn.addEventListener("click", () => {
+    store.cycleSort();
+    sortLabel();
+  });
+
   const logoutBtn = h("button", { class: "ghost", type: "button" }, "sign out");
   logoutBtn.addEventListener("click", logout);
 
   root.append(
-    h("header", {}, h("h1", {}, "todo"), logoutBtn),
+    h("header", {}, h("h1", {}, "todo"), h("div", { class: "actions" }, sortBtn, logoutBtn)),
     addForm,
     list,
     status,
-    h("p", { class: "hint" }, "n new · j/k move · space done · e edit · t due · r repeat · d delete · J/K reorder"),
+    h(
+      "p",
+      { class: "hint" },
+      "n new · j/k move · space done · e edit · t due · r repeat · p prio · s sort · d delete · J/K reorder",
+    ),
   );
 
   let selected: string | null = null;
@@ -66,6 +79,10 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     setTimeout(() => (status.textContent = ""), 4000);
   };
   const run = (p: Promise<unknown>) => p.catch(flash);
+  const note = (msg: string) => {
+    status.textContent = msg;
+    setTimeout(() => (status.textContent = ""), 2500);
+  };
 
   addForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -90,6 +107,12 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     for (const p of PRESETS) repeat.append(h("option", { value: p.value }, p.label));
     repeat.addEventListener("change", () => run(store.setRepeat(t.id, repeat.value)));
 
+    const prio = h("button", { class: "prio", type: "button", "aria-label": "priority" }, "⚑");
+    prio.addEventListener("click", (e) => {
+      e.stopPropagation();
+      run(store.cyclePriority(t.id));
+    });
+
     const del = h("button", { class: "del", type: "button", "aria-label": "delete" }, "×");
     del.addEventListener("click", () => run(store.remove(t.id)));
 
@@ -97,7 +120,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
       "li",
       { class: "todo", "data-id": t.id },
       check,
-      h("div", { class: "main" }, title, h("div", { class: "meta" }, late, due, repeat)),
+      h("div", { class: "main" }, title, h("div", { class: "meta" }, prio, late, due, repeat)),
       del,
     );
     li.addEventListener("pointerdown", () => select(t.id));
@@ -113,6 +136,13 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     li.classList.toggle("pending", t.id.startsWith("tmp-"));
     li.classList.toggle("late", !!lateText);
     li.classList.toggle("repeating", !!t.repeat);
+
+    const p = t.priority ?? 0;
+    li.classList.toggle("prio-high", p === 1);
+    li.classList.toggle("prio-urgent", p === 2);
+    const prio = li.querySelector<HTMLButtonElement>(".prio")!;
+    const ptitle = p === 2 ? "urgent" : p === 1 ? "high" : "normal";
+    if (prio.title !== ptitle) prio.title = ptitle;
 
     const check = li.querySelector<HTMLInputElement>("input[type=checkbox]")!;
     if (check.checked !== t.done) check.checked = t.done;
@@ -176,6 +206,16 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     const i = selected ? ids.indexOf(selected) : -1;
     const j = i < 0 ? (dir > 0 ? 0 : ids.length - 1) : Math.min(ids.length - 1, Math.max(0, i + dir));
     select(ids[j]!);
+  }
+
+  // Manual reorder only makes sense when the list isn't auto-sorted.
+  function reorder(dir: -1 | 1): void {
+    if (!selected) return;
+    if (store.sortMode !== "manual") {
+      note("switch to manual sort (s) to reorder");
+      return;
+    }
+    run(store.move(selected, dir));
   }
 
   function startEdit(id: string): void {
@@ -265,11 +305,18 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
       case "r":
         focusField(".repeat");
         break;
+      case "p":
+        if (selected) run(store.cyclePriority(selected));
+        break;
+      case "s":
+        store.cycleSort();
+        sortLabel();
+        break;
       case "J":
-        if (selected) run(store.move(selected, 1));
+        if (selected) reorder(1);
         break;
       case "K":
-        if (selected) run(store.move(selected, -1));
+        if (selected) reorder(-1);
         break;
       case "Escape":
         select(null);

@@ -2,19 +2,44 @@ import { authId, isAuthError, logout, pb, toPbDate, todosCollection, type Todo }
 import { nextOccurrence, parseRule, today } from "./recur";
 
 type Listener = () => void;
-type Patch = Partial<Pick<Todo, "title" | "done" | "due" | "order" | "repeat">>;
+type Patch = Partial<Pick<Todo, "title" | "done" | "due" | "order" | "repeat" | "priority">>;
 
+export type SortMode = "priority" | "due" | "manual";
+export const SORT_MODES: SortMode[] = ["priority", "due", "manual"];
+const SORT_KEY = "todo.sort";
+
+const loadSortMode = (): SortMode => {
+  try {
+    const s = localStorage.getItem(SORT_KEY);
+    if (s === "priority" || s === "due" || s === "manual") return s;
+  } catch {
+    /* no localStorage (private mode) */
+  }
+  return "priority";
+};
+
+// Server-side initial order; client re-sorts by sortMode in emit().
 const SORT = "done,order,due";
 
-// Mirrors server sort. Empty due sorts last.
-function compare(a: Todo, b: Todo): number {
+const prio = (t: Todo) => t.priority ?? 0;
+const dueKey = (t: Todo) => t.due || "￿"; // empty due sorts last
+
+// Done always sinks; then the mode's keys, remaining keys as tiebreakers.
+function compare(mode: SortMode, a: Todo, b: Todo): number {
   if (a.done !== b.done) return a.done ? 1 : -1;
-  if (a.order !== b.order) return a.order - b.order;
-  return (a.due || "￿").localeCompare(b.due || "￿");
+  if (mode === "priority") {
+    return prio(b) - prio(a) || dueKey(a).localeCompare(dueKey(b)) || a.order - b.order;
+  }
+  if (mode === "due") {
+    return dueKey(a).localeCompare(dueKey(b)) || prio(b) - prio(a) || a.order - b.order;
+  }
+  if (a.order !== b.order) return a.order - b.order; // manual
+  return dueKey(a).localeCompare(dueKey(b));
 }
 
 export class Store {
   items: Todo[] = [];
+  sortMode: SortMode = loadSortMode();
   private listeners = new Set<Listener>();
   private unsubscribe: (() => Promise<void>) | null = null;
   private unsubscribeConnect: (() => Promise<void>) | null = null;
@@ -100,12 +125,13 @@ export class Store {
       done: false,
       due: "",
       order,
+      priority: 0,
       owner: authId(),
       repeat: "",
     } as Todo);
     this.emit();
     try {
-      const created = await todosCollection().create({ title, done: false, order, owner: authId() });
+      const created = await todosCollection().create({ title, done: false, order, priority: 0, owner: authId() });
       this.pendingCreates.delete(tmpId);
       this.drop(tmpId);
       this.upsert(created);
@@ -147,6 +173,26 @@ export class Store {
       return this.patch(id, { due: toPbDate(nextOccurrence(today(), rule)) });
     }
     return this.patch(id, { done: !t.done });
+  }
+
+  // Cycle normal → high → urgent → normal.
+  cyclePriority(id: string): Promise<void> {
+    const t = this.get(id);
+    if (!t) return Promise.resolve();
+    return this.patch(id, { priority: ((t.priority ?? 0) + 1) % 3 });
+  }
+
+  // Cycle priority → due → manual; persist choice. Re-sorts in place.
+  cycleSort(): SortMode {
+    const i = SORT_MODES.indexOf(this.sortMode);
+    this.sortMode = SORT_MODES[(i + 1) % SORT_MODES.length]!;
+    try {
+      localStorage.setItem(SORT_KEY, this.sortMode);
+    } catch {
+      /* no localStorage */
+    }
+    this.emit();
+    return this.sortMode;
   }
 
   // Setting a repeat on a todo without a due date anchors it to today.
@@ -213,7 +259,7 @@ export class Store {
   }
 
   private emit(): void {
-    this.items.sort(compare);
+    this.items.sort((a, b) => compare(this.sortMode, a, b));
     for (const l of this.listeners) l();
   }
 

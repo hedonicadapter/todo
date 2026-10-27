@@ -45,6 +45,11 @@ header {
   justify-content: space-between;
   margin: 8px 0 12px;
 }
+header .actions {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
 h1 {
   font-size: 1.25rem;
   font-weight: 600;
@@ -181,6 +186,24 @@ li.todo .repeat {
 }
 li.todo.repeating .repeat {
   color: var(--fg);
+}
+/* Priority: flag in meta. Faint when normal, coloured when raised. */
+li.todo .prio {
+  border: none;
+  padding: 0;
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--muted);
+  opacity: 0.4;
+  cursor: pointer;
+}
+li.todo.prio-high .prio {
+  color: #d98a1f;
+  opacity: 1;
+}
+li.todo.prio-urgent .prio {
+  color: var(--danger);
+  opacity: 1;
 }
 /* Late: red pill + red date, row accent on the left edge. */
 li.todo .late-pill:empty {

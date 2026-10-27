@@ -5,6 +5,7 @@ export interface Todo extends RecordModel {
   done: boolean;
   due: string; // "" or PocketBase datetime string
   order: number;
+  priority: number; // 0 normal · 1 high · 2 urgent
   owner: string;
   repeat: string; // "" or RRULE subset, see recur.ts
 }
