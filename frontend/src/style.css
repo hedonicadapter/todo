@@ -142,13 +142,35 @@ li.todo.pending {
   opacity: 0.6;
 }
 li.todo input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
   margin: 3px 0 0;
-  accent-color: var(--accent);
+  border: 1px solid var(--base04);
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+  position: relative;
 }
+li.todo input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+li.todo input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--base07);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+/* Repeating: square like the rest, cued by a teal border instead of a round shape. */
 li.todo.repeating input[type="checkbox"] {
-  border-radius: 50%;
+  border-color: var(--base0c);
 }
 li.todo .main {
   min-width: 0;
