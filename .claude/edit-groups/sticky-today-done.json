@@ -1,0 +1,185 @@
+{
+  "category": "sticky-today-done",
+  "description": "Sticky bottom section with today and done tabs",
+  "edits": [
+    {
+      "id": "b14b6810-b299-485d-8379-e9a42ecd701a",
+      "timestamp": "2026-10-28T08:32:19.829073+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 2,
+          "line_count": 1,
+          "old_start_line": 2,
+          "old_line_count": 1,
+          "patch": "@@ -2 +2 @@\n-import { PRESETS, describeRule, lateLabel } from \"./recur\";\n+import { PRESETS, describeRule, lateLabel, today } from \"./recur\";\n"
+        }
+      ],
+      "intention": "idk but make the checkboxes non rounded too / i need a sticky bottom section with two \"tabs\", one for something like \"today\" that i can drag or move items to that i want to do today, and one for \"done\", showing completed items by date (or reuse the same sorting components). this removes the need to show completed items in the main list. The bottom section should also be expandable so it doesnt take automatically up all screen real estate when it fills up."
+    },
+    {
+      "id": "39d8d3c1-ebbc-4cf7-941b-c227688878f8",
+      "timestamp": "2026-10-28T08:32:45.981533+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 240,
+          "line_count": 7,
+          "old_start_line": 239,
+          "old_line_count": 0,
+          "patch": "@@ -239,0 +240,7 @@\n+\n+    const inToday = t.today && !t.done;\n+    li.classList.toggle(\"in-today\", inToday);\n+    const todayBtn = li.querySelector<HTMLButtonElement>(\".today-btn\")!;\n+    const tglyph = inToday ? \"\u00ab\" : \"\u00bb\";\n+    if (todayBtn.textContent !== tglyph) todayBtn.textContent = tglyph;\n+    todayBtn.title = inToday ? \"return to backlog\" : \"send to today\";\n"
+        }
+      ],
+      "intention": "idk but make the checkboxes non rounded too / i need a sticky bottom section with two \"tabs\", one for something like \"today\" that i can drag or move items to that i want to do today, and one for \"done\", showing completed items by date (or reuse the same sorting components). this removes the need to show completed items in the main list. The bottom section should also be expandable so it doesnt take automatically up all screen real estate when it fills up."
+    },
+    {
+      "id": "4c02f730-31dc-46ec-bcc4-0303844379c2",
+      "timestamp": "2026-10-28T08:33:02.705324+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 273,
+          "line_count": 49,
+          "old_start_line": 272,
+          "old_line_count": 0,
+          "patch": "@@ -272,0 +273,49 @@\n+  function rowFor(t: Todo): HTMLLIElement {\n+    let li = rows.get(t.id);\n+    if (!li) {\n+      li = row(t);\n+      rows.set(t.id, li);\n+    }\n+    update(li, t);\n+    return li;\n+  }\n+\n+  // Keyed reconcile of `items` into `ul`; records ids in `present`.\n+  function renderInto(ul: HTMLElement, items: Todo[], present: Set<string>): void {\n+    let cursor: ChildNode | null = ul.firstChild;\n+    for (const t of items) {\n+      present.add(t.id);\n+      const li = rowFor(t);\n+      if (li !== cursor) ul.insertBefore(li, cursor);\n+      else cursor = cursor.nextSibling;\n+    }\n+  }\n+\n+  // Done items grouped under relative-day headers (reuses row elements).\n+  function renderDone(items: Todo[], present: Set<string>): void {\n+    doneGroups.replaceChildren();\n+    let lastDay: string | null = null;\n+    let groupUl: HTMLUListElement | null = null;\n+    for (const t of items) {\n+      present.add(t.id);\n+      const day = (t.completed || \"\").slice(0, 10);\n+      if (day !== lastDay || !groupUl) {\n+        lastDay = day;\n+        doneGroups.append(h(\"div\", { class: \"done-head\" }, relativeDay(day)));\n+        groupUl = h(\"ul\", { class: \"list done-list\" });\n+        doneGroups.append(groupUl);\n+      }\n+      groupUl.append(rowFor(t));\n+    }\n+  }\n+\n+  function relativeDay(day: string): string {\n+    if (!day) return \"\u2014\";\n+    const t = today();\n+    if (day === t) return \"today\";\n+    const y = new Date(`${t}T00:00:00`);\n+    y.setDate(y.getDate() - 1);\n+    if (day === y.toISOString().slice(0, 10)) return \"yesterday\";\n+    return day;\n+  }\n+\n"
+        },
+        {
+          "start_line": 323,
+          "line_count": 11,
+          "old_start_line": 274,
+          "old_line_count": 13,
+          "patch": "@@ -274,13 +323,11 @@\n-    const seen = new Set<string>();\n-    let cursor: ChildNode | null = list.firstChild;\n-    for (const t of store.items) {\n-      seen.add(t.id);\n-      let li = rows.get(t.id);\n-      if (!li) {\n-        li = row(t);\n-        rows.set(t.id, li);\n-      }\n-      update(li, t);\n-      if (li !== cursor) list.insertBefore(li, cursor);\n-      else cursor = cursor.nextSibling;\n-    }\n+    const present = new Set<string>();\n+    const back = store.backlog();\n+    renderInto(list, back, present);\n+\n+    const todayItems = store.todayList();\n+    const doneItems = store.doneList();\n+    if (dockOpen) {\n+      if (activeTab === \"today\") renderInto(todayUl, todayItems, present);\n+      else renderDone(doneItems, present);\n+    }\n+\n"
+        },
+        {
+          "start_line": 335,
+          "line_count": 1,
+          "old_start_line": 288,
+          "old_line_count": 1,
+          "patch": "@@ -288 +335 @@\n-      if (!seen.has(id)) {\n+      if (!present.has(id)) {\n"
+        },
+        {
+          "start_line": 342,
+          "line_count": 4,
+          "old_start_line": 295,
+          "old_line_count": 1,
+          "patch": "@@ -295 +342,4 @@\n-    list.classList.toggle(\"empty\", store.items.length === 0);\n+\n+    todayTab.textContent = todayItems.length ? `today (${todayItems.length})` : \"today\";\n+    doneTab.textContent = doneItems.length ? `done (${doneItems.length})` : \"done\";\n+    list.classList.toggle(\"empty\", back.length === 0);\n"
+        }
+      ],
+      "intention": "idk but make the checkboxes non rounded too / i need a sticky bottom section with two \"tabs\", one for something like \"today\" that i can drag or move items to that i want to do today, and one for \"done\", showing completed items by date (or reuse the same sorting components). this removes the need to show completed items in the main list. The bottom section should also be expandable so it doesnt take automatically up all screen real estate when it fills up."
+    },
+    {
+      "id": "62ec02c5-f054-4a1c-85a3-ad472a5bd9b3",
+      "timestamp": "2026-10-28T08:33:05.453394+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 202,
+          "line_count": 6,
+          "old_start_line": 201,
+          "old_line_count": 0,
+          "patch": "@@ -201,0 +202,6 @@\n+    const todayBtn = h(\"button\", { class: \"today-btn\", type: \"button\", \"aria-label\": \"today\" }, \"\u00bb\");\n+    todayBtn.addEventListener(\"click\", (e) => {\n+      e.stopPropagation();\n+      run(store.toggleToday(t.id));\n+    });\n+\n"
+        },
+        {
+          "start_line": 215,
+          "line_count": 1,
+          "old_start_line": 209,
+          "old_line_count": 1,
+          "patch": "@@ -209 +215 @@\n-      h(\"div\", { class: \"main\" }, title, h(\"div\", { class: \"meta\" }, prio, late, due, repeat)),\n+      h(\"div\", { class: \"main\" }, title, h(\"div\", { class: \"meta\" }, prio, todayBtn, late, due, repeat)),\n"
+        },
+        {
+          "start_line": 218,
+          "line_count": 2,
+          "old_start_line": 211,
+          "old_line_count": 0,
+          "patch": "@@ -211,0 +218,2 @@\n+    li.draggable = true;\n+    li.addEventListener(\"dragstart\", (e) => e.dataTransfer?.setData(\"text/plain\", t.id));\n"
+        }
+      ],
+      "intention": "idk but make the checkboxes non rounded too / i need a sticky bottom section with two \"tabs\", one for something like \"today\" that i can drag or move items to that i want to do today, and one for \"done\", showing completed items by date (or reuse the same sorting components). this removes the need to show completed items in the main list. The bottom section should also be expandable so it doesnt take automatically up all screen real estate when it fills up."
+    },
+    {
+      "id": "f41c7c0d-b637-4463-bbf1-54ed791a63a5",
+      "timestamp": "2026-10-28T08:33:19.820252+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 442,
+          "line_count": 1,
+          "old_start_line": 442,
+          "old_line_count": 1,
+          "patch": "@@ -442 +442 @@\n-          const ids = store.items.map((t) => t.id);\n+          const ids = store.backlog().map((t) => t.id);\n"
+        }
+      ],
+      "intention": "idk but make the checkboxes non rounded too / i need a sticky bottom section with two \"tabs\", one for something like \"today\" that i can drag or move items to that i want to do today, and one for \"done\", showing completed items by date (or reuse the same sorting components). this removes the need to show completed items in the main list. The bottom section should also be expandable so it doesnt take automatically up all screen real estate when it fills up."
+    },
+    {
+      "id": "cead686a-8e13-48a1-aa60-7220dc9afd8f",
+      "timestamp": "2026-10-28T08:33:24.264751+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 461,
+          "line_count": 3,
+          "old_start_line": 460,
+          "old_line_count": 0,
+          "patch": "@@ -460,0 +461,3 @@\n+        break;\n+      case \"g\":\n+        if (selected) run(store.toggleToday(selected));\n"
+        }
+      ],
+      "intention": "idk but make the checkboxes non rounded too / i need a sticky bottom section with two \"tabs\", one for something like \"today\" that i can drag or move items to that i want to do today, and one for \"done\", showing completed items by date (or reuse the same sorting components). this removes the need to show completed items in the main list. The bottom section should also be expandable so it doesnt take automatically up all screen real estate when it fills up."
+    },
+    {
+      "id": "15d01a8c-f295-4615-984c-5ffc93859037",
+      "timestamp": "2026-10-28T08:33:39.063359+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 355,
+          "line_count": 1,
+          "old_start_line": 355,
+          "old_line_count": 1,
+          "patch": "@@ -355 +355 @@\n-    const ids = store.items.map((t) => t.id);\n+    const ids = store.backlog().map((t) => t.id);\n"
+        }
+      ],
+      "intention": "idk but make the checkboxes non rounded too / i need a sticky bottom section with two \"tabs\", one for something like \"today\" that i can drag or move items to that i want to do today, and one for \"done\", showing completed items by date (or reuse the same sorting components). this removes the need to show completed items in the main list. The bottom section should also be expandable so it doesnt take automatically up all screen real estate when it fills up."
+    },
+    {
+      "id": "3b34d03a-40d9-431e-a53a-3129bef12d50",
+      "timestamp": "2026-10-28T08:34:19.344327+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/style.css",
+      "hunks": [
+        {
+          "start_line": 283,
+          "line_count": 79,
+          "old_start_line": 282,
+          "old_line_count": 0,
+          "patch": "@@ -282,0 +283,79 @@\n+/* Today toggle: \u00bb send to today, \u00ab recall to backlog. */\n+li.todo .today-btn {\n+  border: none;\n+  padding: 0 2px;\n+  font-size: 0.95rem;\n+  line-height: 1;\n+  color: var(--muted);\n+  opacity: 0.5;\n+  cursor: pointer;\n+}\n+li.todo.in-today .today-btn {\n+  color: var(--accent);\n+  opacity: 1;\n+}\n+li.todo.done .today-btn {\n+  display: none;\n+}\n+\n+/* --- bottom dock: Today + Done tabs --- */\n+.dock {\n+  position: fixed;\n+  left: 0;\n+  right: 0;\n+  bottom: 0;\n+  margin: 0 auto;\n+  max-width: 560px;\n+  background: var(--base01);\n+  border-top: 1px solid var(--line);\n+  padding-bottom: env(safe-area-inset-bottom);\n+  z-index: 10;\n+}\n+.dock.drop-target {\n+  outline: 1px dashed var(--accent);\n+  outline-offset: -1px;\n+}\n+.tabbar {\n+  display: flex;\n+  align-items: stretch;\n+}\n+.tabbar .tab {\n+  flex: 1;\n+  border: none;\n+  border-radius: 0;\n+  padding: 9px 12px;\n+  color: var(--muted);\n+  text-align: left;\n+  cursor: pointer;\n+}\n+.tabbar .tab.active {\n+  color: var(--fg);\n+  box-shadow: inset 0 2px 0 var(--accent);\n+}\n+.tabbar .chev {\n+  border: none;\n+  color: var(--muted);\n+  padding: 9px 14px;\n+  cursor: pointer;\n+}\n+.dock .panel {\n+  display: none;\n+  padding: 0 16px 10px;\n+  max-height: 45vh;\n+  overflow-y: auto;\n+}\n+.dock.open .panel {\n+  display: block;\n+}\n+.dock .list {\n+  margin: 0;\n+  border-top: none;\n+}\n+.done-head {\n+  font-size: 0.7rem;\n+  text-transform: uppercase;\n+  letter-spacing: 0.08em;\n+  color: var(--muted);\n+  padding: 10px 2px 2px;\n+}\n+\n"
+        }
+      ],
+      "intention": "idk but make the checkboxes non rounded too / i need a sticky bottom section with two \"tabs\", one for something like \"today\" that i can drag or move items to that i want to do today, and one for \"done\", showing completed items by date (or reuse the same sorting components). this removes the need to show completed items in the main list. The bottom section should also be expandable so it doesnt take automatically up all screen real estate when it fills up."
+    }
+  ]
+}

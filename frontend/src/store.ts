@@ -2,7 +2,7 @@ import { authId, isAuthError, logout, pb, toPbDate, todosCollection, type Todo }
 import { nextOccurrence, parseRule, today } from "./recur";
 
 type Listener = () => void;
-type Patch = Partial<Pick<Todo, "title" | "done" | "due" | "order" | "repeat" | "priority">>;
+type Patch = Partial<Pick<Todo, "title" | "done" | "due" | "order" | "repeat" | "priority" | "today" | "completed">>;
 
 export type SortMode = "priority" | "due" | "manual";
 export const SORT_MODES: SortMode[] = ["priority", "due", "manual"];
@@ -54,6 +54,21 @@ export class Store {
 
   get(id: string): Todo | undefined {
     return this.items.find((t) => t.id === id);
+  }
+
+  // Active items not in Today, by current sort.
+  backlog(): Todo[] {
+    return this.items.filter((t) => !t.done && !t.today).sort((a, b) => compare(this.sortMode, a, b));
+  }
+
+  // Active items flagged for Today, by current sort.
+  todayList(): Todo[] {
+    return this.items.filter((t) => !t.done && t.today).sort((a, b) => compare(this.sortMode, a, b));
+  }
+
+  // Completed items, newest completion first.
+  doneList(): Todo[] {
+    return this.items.filter((t) => t.done).sort((a, b) => (b.completed || "").localeCompare(a.completed || ""));
   }
 
   async load(): Promise<void> {
@@ -126,12 +141,21 @@ export class Store {
       due: "",
       order,
       priority: 0,
+      today: false,
+      completed: "",
       owner: authId(),
       repeat: "",
     } as Todo);
     this.emit();
     try {
-      const created = await todosCollection().create({ title, done: false, order, priority: 0, owner: authId() });
+      const created = await todosCollection().create({
+        title,
+        done: false,
+        order,
+        priority: 0,
+        today: false,
+        owner: authId(),
+      });
       this.pendingCreates.delete(tmpId);
       this.drop(tmpId);
       this.upsert(created);
@@ -172,7 +196,24 @@ export class Store {
     if (rule && !t.done) {
       return this.patch(id, { due: toPbDate(nextOccurrence(today(), rule)) });
     }
-    return this.patch(id, { done: !t.done });
+    // Stamp completion time (for Done grouping); clear it when reopened.
+    return t.done
+      ? this.patch(id, { done: false, completed: "" })
+      : this.patch(id, { done: true, completed: new Date().toISOString() });
+  }
+
+  // Send to / recall from the Today focus queue.
+  toggleToday(id: string): Promise<void> {
+    const t = this.get(id);
+    if (!t) return Promise.resolve();
+    return this.patch(id, { today: !t.today });
+  }
+
+  // Explicit set (drag-drop onto a target).
+  setToday(id: string, val: boolean): Promise<void> {
+    const t = this.get(id);
+    if (!t || t.today === val) return Promise.resolve();
+    return this.patch(id, { today: val });
   }
 
   // Cycle normal → high → urgent → normal.

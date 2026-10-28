@@ -1,0 +1,332 @@
+{
+  "category": "todo-priority",
+  "description": "Add todo prioritization and sorting with defaults",
+  "edits": [
+    {
+      "id": "ea0a8a9e-01c7-48e2-8c01-1bde3847f447",
+      "timestamp": "2026-10-27T16:18:56.679100+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Write",
+      "file": "pb_migrations/1761410000_todos_priority.js",
+      "hunks": [
+        {
+          "start_line": 1,
+          "line_count": 14,
+          "old_start_line": 0,
+          "old_line_count": 0,
+          "patch": "@@ -0,0 +1,14 @@\n+/// <reference path=\"../pb_data/types.d.ts\" />\n+// priority: 0 normal (default), 1 high, 2 urgent. Higher sorts first.\n+migrate(\n+  (app) => {\n+    const todos = app.findCollectionByNameOrId(\"todos\");\n+    todos.fields.add(new NumberField({ name: \"priority\", onlyInt: true, min: 0, max: 2 }));\n+    app.save(todos);\n+  },\n+  (app) => {\n+    const todos = app.findCollectionByNameOrId(\"todos\");\n+    todos.fields.removeByName(\"priority\");\n+    app.save(todos);\n+  },\n+);\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "b6fc8864-5d5e-470a-a0fe-647eaf48f1fb",
+      "timestamp": "2026-10-27T16:20:56.607925+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/pb.ts",
+      "hunks": [
+        {
+          "start_line": 8,
+          "line_count": 1,
+          "old_start_line": 7,
+          "old_line_count": 0,
+          "patch": "@@ -7,0 +8 @@\n+  priority: number; // 0 normal \u00b7 1 high \u00b7 2 urgent\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "138d693e-ea39-4905-8c12-e8dd2e973a6e",
+      "timestamp": "2026-10-27T16:26:56.471643+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/store.ts",
+      "hunks": [
+        {
+          "start_line": 5,
+          "line_count": 17,
+          "old_start_line": 5,
+          "old_line_count": 2,
+          "patch": "@@ -5,2 +5,17 @@\n-type Patch = Partial<Pick<Todo, \"title\" | \"done\" | \"due\" | \"order\" | \"repeat\">>;\n-\n+type Patch = Partial<Pick<Todo, \"title\" | \"done\" | \"due\" | \"order\" | \"repeat\" | \"priority\">>;\n+\n+export type SortMode = \"priority\" | \"due\" | \"manual\";\n+export const SORT_MODES: SortMode[] = [\"priority\", \"due\", \"manual\"];\n+const SORT_KEY = \"todo.sort\";\n+\n+const loadSortMode = (): SortMode => {\n+  try {\n+    const s = localStorage.getItem(SORT_KEY);\n+    if (s === \"priority\" || s === \"due\" || s === \"manual\") return s;\n+  } catch {\n+    /* no localStorage (private mode) */\n+  }\n+  return \"priority\";\n+};\n+\n+// Server-side initial order; client re-sorts by sortMode in emit().\n"
+        },
+        {
+          "start_line": 24,
+          "line_count": 5,
+          "old_start_line": 9,
+          "old_line_count": 2,
+          "patch": "@@ -9,2 +24,5 @@\n-// Mirrors server sort. Empty due sorts last.\n-function compare(a: Todo, b: Todo): number {\n+const prio = (t: Todo) => t.priority ?? 0;\n+const dueKey = (t: Todo) => t.due || \"\uffff\"; // empty due sorts last\n+\n+// Done always sinks; then the mode's keys, remaining keys as tiebreakers.\n+function compare(mode: SortMode, a: Todo, b: Todo): number {\n"
+        },
+        {
+          "start_line": 30,
+          "line_count": 8,
+          "old_start_line": 12,
+          "old_line_count": 2,
+          "patch": "@@ -12,2 +30,8 @@\n-  if (a.order !== b.order) return a.order - b.order;\n-  return (a.due || \"\uffff\").localeCompare(b.due || \"\uffff\");\n+  if (mode === \"priority\") {\n+    return prio(b) - prio(a) || dueKey(a).localeCompare(dueKey(b)) || a.order - b.order;\n+  }\n+  if (mode === \"due\") {\n+    return dueKey(a).localeCompare(dueKey(b)) || prio(b) - prio(a) || a.order - b.order;\n+  }\n+  if (a.order !== b.order) return a.order - b.order; // manual\n+  return dueKey(a).localeCompare(dueKey(b));\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "20bd431f-f339-4324-80a9-bfc6ae98666d",
+      "timestamp": "2026-10-27T16:27:41.850157+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/store.ts",
+      "hunks": [
+        {
+          "start_line": 42,
+          "line_count": 1,
+          "old_start_line": 41,
+          "old_line_count": 0,
+          "patch": "@@ -41,0 +42 @@\n+  sortMode: SortMode = loadSortMode();\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "40c2a634-639a-4c21-8bed-5a550e05d0ec",
+      "timestamp": "2026-10-27T16:27:50.257322+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/store.ts",
+      "hunks": [
+        {
+          "start_line": 128,
+          "line_count": 1,
+          "old_start_line": 127,
+          "old_line_count": 0,
+          "patch": "@@ -127,0 +128 @@\n+      priority: 0,\n"
+        },
+        {
+          "start_line": 134,
+          "line_count": 1,
+          "old_start_line": 133,
+          "old_line_count": 1,
+          "patch": "@@ -133 +134 @@\n-      const created = await todosCollection().create({ title, done: false, order, owner: authId() });\n+      const created = await todosCollection().create({ title, done: false, order, priority: 0, owner: authId() });\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "6bce3c61-bd60-4676-ba33-1bf2aa64cf8e",
+      "timestamp": "2026-10-27T16:28:58.146110+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/store.ts",
+      "hunks": [
+        {
+          "start_line": 178,
+          "line_count": 20,
+          "old_start_line": 177,
+          "old_line_count": 0,
+          "patch": "@@ -177,0 +178,20 @@\n+  // Cycle normal \u2192 high \u2192 urgent \u2192 normal.\n+  cyclePriority(id: string): Promise<void> {\n+    const t = this.get(id);\n+    if (!t) return Promise.resolve();\n+    return this.patch(id, { priority: ((t.priority ?? 0) + 1) % 3 });\n+  }\n+\n+  // Cycle priority \u2192 due \u2192 manual; persist choice. Re-sorts in place.\n+  cycleSort(): SortMode {\n+    const i = SORT_MODES.indexOf(this.sortMode);\n+    this.sortMode = SORT_MODES[(i + 1) % SORT_MODES.length]!;\n+    try {\n+      localStorage.setItem(SORT_KEY, this.sortMode);\n+    } catch {\n+      /* no localStorage */\n+    }\n+    this.emit();\n+    return this.sortMode;\n+  }\n+\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "31c3038d-43a1-4116-9979-cd069e6cdfda",
+      "timestamp": "2026-10-27T16:29:03.938784+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/store.ts",
+      "hunks": [
+        {
+          "start_line": 262,
+          "line_count": 1,
+          "old_start_line": 262,
+          "old_line_count": 1,
+          "patch": "@@ -262 +262 @@\n-    this.items.sort(compare);\n+    this.items.sort((a, b) => compare(this.sortMode, a, b));\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "697e270a-4bbf-4833-9e6f-a1ebcb7db777",
+      "timestamp": "2026-10-27T16:29:31.385611+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 49,
+          "line_count": 9,
+          "old_start_line": 48,
+          "old_line_count": 0,
+          "patch": "@@ -48,0 +49,9 @@\n+\n+  const sortBtn = h(\"button\", { class: \"ghost sort\", type: \"button\" });\n+  const sortLabel = () => (sortBtn.textContent = `sort: ${store.sortMode}`);\n+  sortLabel();\n+  sortBtn.addEventListener(\"click\", () => {\n+    store.cycleSort();\n+    sortLabel();\n+  });\n+\n"
+        },
+        {
+          "start_line": 62,
+          "line_count": 1,
+          "old_start_line": 53,
+          "old_line_count": 1,
+          "patch": "@@ -53 +62 @@\n-    h(\"header\", {}, h(\"h1\", {}, \"todo\"), logoutBtn),\n+    h(\"header\", {}, h(\"h1\", {}, \"todo\"), h(\"div\", { class: \"actions\" }, sortBtn, logoutBtn)),\n"
+        },
+        {
+          "start_line": 66,
+          "line_count": 5,
+          "old_start_line": 57,
+          "old_line_count": 1,
+          "patch": "@@ -57 +66,5 @@\n-    h(\"p\", { class: \"hint\" }, \"n new \u00b7 j/k move \u00b7 space done \u00b7 e edit \u00b7 t due \u00b7 r repeat \u00b7 d delete \u00b7 J/K reorder\"),\n+    h(\n+      \"p\",\n+      { class: \"hint\" },\n+      \"n new \u00b7 j/k move \u00b7 space done \u00b7 e edit \u00b7 t due \u00b7 r repeat \u00b7 p prio \u00b7 s sort \u00b7 d delete \u00b7 J/K reorder\",\n+    ),\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "661c3ee2-aaab-482c-a320-c9b558f2ce30",
+      "timestamp": "2026-10-27T16:36:11.159913+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 82,
+          "line_count": 4,
+          "old_start_line": 81,
+          "old_line_count": 0,
+          "patch": "@@ -81,0 +82,4 @@\n+  const note = (msg: string) => {\n+    status.textContent = msg;\n+    setTimeout(() => (status.textContent = \"\"), 2500);\n+  };\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "bd1a2554-f0e0-4852-b47b-8cba3bbfd7df",
+      "timestamp": "2026-10-27T16:36:50.749474+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 110,
+          "line_count": 6,
+          "old_start_line": 109,
+          "old_line_count": 0,
+          "patch": "@@ -109,0 +110,6 @@\n+    const prio = h(\"button\", { class: \"prio\", type: \"button\", \"aria-label\": \"priority\" }, \"\u2691\");\n+    prio.addEventListener(\"click\", (e) => {\n+      e.stopPropagation();\n+      run(store.cyclePriority(t.id));\n+    });\n+\n"
+        },
+        {
+          "start_line": 123,
+          "line_count": 1,
+          "old_start_line": 117,
+          "old_line_count": 1,
+          "patch": "@@ -117 +123 @@\n-      h(\"div\", { class: \"main\" }, title, h(\"div\", { class: \"meta\" }, late, due, repeat)),\n+      h(\"div\", { class: \"main\" }, title, h(\"div\", { class: \"meta\" }, prio, late, due, repeat)),\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "38e35fde-673b-4fd7-bd83-011236fddb0e",
+      "timestamp": "2026-10-27T16:37:03.359687+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 139,
+          "line_count": 7,
+          "old_start_line": 138,
+          "old_line_count": 0,
+          "patch": "@@ -138,0 +139,7 @@\n+\n+    const p = t.priority ?? 0;\n+    li.classList.toggle(\"prio-high\", p === 1);\n+    li.classList.toggle(\"prio-urgent\", p === 2);\n+    const prio = li.querySelector<HTMLButtonElement>(\".prio\")!;\n+    const ptitle = p === 2 ? \"urgent\" : p === 1 ? \"high\" : \"normal\";\n+    if (prio.title !== ptitle) prio.title = ptitle;\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "dd513915-c661-4150-bc11-35e578ee650b",
+      "timestamp": "2026-10-27T16:37:23.486864+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 298,
+          "line_count": 7,
+          "old_start_line": 297,
+          "old_line_count": 0,
+          "patch": "@@ -297,0 +298,7 @@\n+      case \"p\":\n+        if (selected) run(store.cyclePriority(selected));\n+        break;\n+      case \"s\":\n+        store.cycleSort();\n+        sortLabel();\n+        break;\n"
+        },
+        {
+          "start_line": 306,
+          "line_count": 1,
+          "old_start_line": 299,
+          "old_line_count": 1,
+          "patch": "@@ -299 +306 @@\n-        if (selected) run(store.move(selected, 1));\n+        if (selected) reorder(1);\n"
+        },
+        {
+          "start_line": 309,
+          "line_count": 1,
+          "old_start_line": 302,
+          "old_line_count": 1,
+          "patch": "@@ -302 +309 @@\n-        if (selected) run(store.move(selected, -1));\n+        if (selected) reorder(-1);\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "c0d68e1f-7343-4649-aead-094b045473b2",
+      "timestamp": "2026-10-27T16:37:31.138624+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/ui.ts",
+      "hunks": [
+        {
+          "start_line": 209,
+          "line_count": 10,
+          "old_start_line": 208,
+          "old_line_count": 0,
+          "patch": "@@ -208,0 +209,10 @@\n+  }\n+\n+  // Manual reorder only makes sense when the list isn't auto-sorted.\n+  function reorder(dir: -1 | 1): void {\n+    if (!selected) return;\n+    if (store.sortMode !== \"manual\") {\n+      note(\"switch to manual sort (s) to reorder\");\n+      return;\n+    }\n+    run(store.move(selected, dir));\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "5c5fe91b-9859-4144-be39-cb77b042c60a",
+      "timestamp": "2026-10-27T16:37:37.114128+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/style.css",
+      "hunks": [
+        {
+          "start_line": 185,
+          "line_count": 18,
+          "old_start_line": 184,
+          "old_line_count": 0,
+          "patch": "@@ -184,0 +185,18 @@\n+/* Priority: flag in meta. Faint when normal, coloured when raised. */\n+li.todo .prio {\n+  border: none;\n+  padding: 0;\n+  font-size: 0.9rem;\n+  line-height: 1;\n+  color: var(--muted);\n+  opacity: 0.4;\n+  cursor: pointer;\n+}\n+li.todo.prio-high .prio {\n+  color: #d98a1f;\n+  opacity: 1;\n+}\n+li.todo.prio-urgent .prio {\n+  color: var(--danger);\n+  opacity: 1;\n+}\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    },
+    {
+      "id": "0e0b211a-b4fc-4df4-83dd-6a32aaadafed",
+      "timestamp": "2026-10-27T16:37:40.565638+00:00",
+      "session_id": "cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae",
+      "transcript_path": "/Users/samherman1/.claude/projects/-Users-samherman1-Documents-projects-todo/cc1f88dd-5dd0-4cdb-8248-7dc9c9d227ae.jsonl",
+      "tool": "Edit",
+      "file": "frontend/src/style.css",
+      "hunks": [
+        {
+          "start_line": 48,
+          "line_count": 5,
+          "old_start_line": 47,
+          "old_line_count": 0,
+          "patch": "@@ -47,0 +48,5 @@\n+header .actions {\n+  display: flex;\n+  align-items: baseline;\n+  gap: 4px;\n+}\n"
+        }
+      ],
+      "intention": "ok thats fine, and the data disk can be deletet? / lets switch focist to the actual app; add two tiers of prioritization, and todo item sorting, both with sane defaults"
+    }
+  ]
+}
