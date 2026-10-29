@@ -123,11 +123,46 @@ form.add .prompt {
   color: var(--accent);
   font-weight: bold;
 }
+form.add .caret {
+  color: var(--accent);
+  animation: blink 1.06s step-end infinite;
+}
+form.add:focus-within .caret {
+  opacity: 0;
+  animation: none;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
 form.add input {
   flex: 1;
   padding: 0;
   background: transparent;
   border: none;
+}
+
+/* TUI window frame with a legend breaking the top border. */
+.frame {
+  position: relative;
+  margin-top: 16px;
+  padding: 8px 8px 2px;
+  border: 1px solid var(--line);
+}
+.frame-label {
+  position: absolute;
+  top: -0.62em;
+  left: 10px;
+  padding: 0 6px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+}
+.frame .list {
+  margin: 0;
+  border-top: none;
 }
 form.add input::placeholder {
   color: var(--muted);

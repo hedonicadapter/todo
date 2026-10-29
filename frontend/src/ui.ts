@@ -60,8 +60,16 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
   };
 
   const addInput = h("input", { placeholder: "NEW TODO", autocomplete: "off", enterkeyhint: "done" });
-  const addForm = h("form", { class: "add" }, h("span", { class: "prompt" }, ">"), addInput);
+  const addForm = h(
+    "form",
+    { class: "add" },
+    h("span", { class: "prompt" }, ">"),
+    h("span", { class: "caret" }, "█"),
+    addInput,
+  );
   const list = h("ul", { class: "list" }); // backlog
+  const listFrameLabel = h("span", { class: "frame-label" }, "BACKLOG");
+  const listFrame = h("div", { class: "frame" }, listFrameLabel, list);
   const status = h("p", { class: "status", role: "status" });
 
   const sortBtn = h("button", { class: "ghost sort", type: "button" });
@@ -129,7 +137,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     ptr,
     h("header", {}, h("h1", {}, "todo"), h("div", { class: "actions" }, sortBtn, logoutBtn)),
     addForm,
-    list,
+    listFrame,
     status,
     h(
       "p",
@@ -326,6 +334,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     if (dragging) return; // don't fight the live DOM reorder mid-drag
     const present = new Set<string>();
     const back = store.backlog();
+    listFrameLabel.textContent = `BACKLOG (${back.length})`;
     renderInto(list, back, present);
 
     const todayItems = store.todayList();
