@@ -94,11 +94,13 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
   const todayTab = h("button", { class: "tab", type: "button" }, "today");
   const doneTab = h("button", { class: "tab", type: "button" }, "done");
   const chev = h("button", { class: "chev ghost", type: "button", "aria-label": "expand" });
+  // Panel opens upward above the tabs; the add prompt is the bottom-most line.
   const dock = h(
     "section",
     { class: "dock" },
-    h("div", { class: "tabbar" }, todayTab, doneTab, chev),
     h("div", { class: "panel" }, todayUl, doneGroups),
+    h("div", { class: "tabbar" }, todayTab, doneTab, chev),
+    addForm,
   );
 
   function syncDock(): void {
@@ -136,7 +138,6 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
   root.append(
     ptr,
     h("header", {}, h("h1", {}, "todo"), h("div", { class: "actions" }, sortBtn, logoutBtn)),
-    addForm,
     listFrame,
     status,
     h(
@@ -227,7 +228,8 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
       handle,
       del,
     );
-    li.addEventListener("pointerdown", () => select(t.id));
+    // Select on click, not pointerdown, so scroll-drags don't select rows.
+    li.addEventListener("click", () => select(t.id));
     return li;
   }
 
