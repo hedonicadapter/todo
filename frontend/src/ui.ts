@@ -98,7 +98,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
   const dock = h(
     "section",
     { class: "dock" },
-    h("div", { class: "panel" }, todayUl, doneGroups),
+    h("div", { class: "panel-wrap" }, h("div", { class: "panel" }, todayUl, doneGroups)),
     h("div", { class: "tabbar" }, todayTab, doneTab, chev),
     addForm,
   );
@@ -228,8 +228,6 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
       handle,
       del,
     );
-    // Select on click, not pointerdown, so scroll-drags don't select rows.
-    li.addEventListener("click", () => select(t.id));
     return li;
   }
 
@@ -390,18 +388,15 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     const t = store.get(id);
     const ul = li.parentElement;
     if (!t || !ul || t.done) return;
-    const inToday = t.today;
-    if (!inToday && store.sortMode !== "manual") {
-      note("switch to manual sort (s) to reorder");
-      return;
-    }
     e.preventDefault();
-    e.stopPropagation();
     const handle = e.currentTarget as HTMLElement;
-    handle.setPointerCapture(e.pointerId);
+    try {
+      handle.setPointerCapture(e.pointerId);
+    } catch {
+      /* best-effort; document listeners below are the real path */
+    }
     dragging = true;
     li.classList.add("dragging");
-    select(id);
 
     const onMove = (ev: PointerEvent): void => {
       const y = ev.clientY;
@@ -418,23 +413,29 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
       else ul.appendChild(li);
     };
     const end = (): void => {
-      handle.removeEventListener("pointermove", onMove);
-      handle.removeEventListener("pointerup", end);
-      handle.removeEventListener("pointercancel", end);
-      try {
-        handle.releasePointerCapture(e.pointerId);
-      } catch {
-        /* already released */
-      }
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", end);
+      document.removeEventListener("pointercancel", end);
       li.classList.remove("dragging");
       dragging = false;
-      const prevId = (li.previousElementSibling as HTMLElement | null)?.getAttribute("data-id") ?? null;
-      const nextId = (li.nextElementSibling as HTMLElement | null)?.getAttribute("data-id") ?? null;
-      run(store.placeBetween(id, prevId, nextId));
+      if (!t.today && store.sortMode !== "manual") {
+        // Dragging the backlog switches it to manual, keeping what's on screen.
+        const ids = Array.from(ul.querySelectorAll<HTMLElement>(":scope > li.todo"))
+          .map((el) => el.getAttribute("data-id"))
+          .filter((x): x is string => !!x);
+        const p = store.applyManualOrder(ids);
+        sortLabel();
+        run(p);
+      } else {
+        const prevId = (li.previousElementSibling as HTMLElement | null)?.getAttribute("data-id") ?? null;
+        const nextId = (li.nextElementSibling as HTMLElement | null)?.getAttribute("data-id") ?? null;
+        run(store.placeBetween(id, prevId, nextId));
+      }
     };
-    handle.addEventListener("pointermove", onMove);
-    handle.addEventListener("pointerup", end);
-    handle.addEventListener("pointercancel", end);
+    // Listen on document so a mouse that leaves the small handle still drives it.
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", end);
+    document.addEventListener("pointercancel", end);
   }
 
   function startEdit(id: string): void {

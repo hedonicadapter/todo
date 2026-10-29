@@ -441,15 +441,23 @@ li.todo.done .handle {
   padding: 9px 14px;
   cursor: pointer;
 }
+/* Animate real content height (grid 0fr<->1fr) so close animates too. */
+.dock .panel-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 240ms var(--ease);
+}
+.dock.open .panel-wrap {
+  grid-template-rows: 1fr;
+}
 .dock .panel {
-  max-height: 0;
+  min-height: 0;
   overflow: hidden;
   padding: 0 16px;
-  transition: max-height 240ms var(--ease);
 }
 .dock.open .panel {
-  max-height: 45vh;
   overflow-y: auto;
+  max-height: 45vh;
   padding-bottom: 10px;
 }
 .dock .list {

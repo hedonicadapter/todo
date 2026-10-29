@@ -217,6 +217,28 @@ export class Store {
     return this.patch(id, { today: val });
   }
 
+  // Bake the given id sequence into `order` and switch to manual sort. Used
+  // when dragging the backlog under a non-manual sort: preserves what's on
+  // screen, then lets manual order take over. Optimistic + single re-sort.
+  async applyManualOrder(ids: string[]): Promise<void> {
+    this.sortMode = "manual";
+    try {
+      localStorage.setItem(SORT_KEY, "manual");
+    } catch {
+      /* no localStorage */
+    }
+    const updates: Promise<unknown>[] = [];
+    ids.forEach((id, i) => {
+      const t = this.get(id);
+      if (t && t.order !== i) {
+        t.order = i;
+        updates.push(todosCollection().update(id, { order: i }).catch(() => {}));
+      }
+    });
+    this.emit();
+    await Promise.all(updates);
+  }
+
   // Drag-reorder: set `order` so the item lands between prev and next (by id).
   placeBetween(id: string, prevId: string | null, nextId: string | null): Promise<void> {
     const t = this.get(id);
