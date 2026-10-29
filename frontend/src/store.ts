@@ -61,9 +61,9 @@ export class Store {
     return this.items.filter((t) => !t.done && !t.today).sort((a, b) => compare(this.sortMode, a, b));
   }
 
-  // Active items flagged for Today, by current sort.
+  // Today is a manually ordered focus list (independent of the sort control).
   todayList(): Todo[] {
-    return this.items.filter((t) => !t.done && t.today).sort((a, b) => compare(this.sortMode, a, b));
+    return this.items.filter((t) => !t.done && t.today).sort((a, b) => a.order - b.order);
   }
 
   // Completed items, newest completion first.
@@ -125,9 +125,9 @@ export class Store {
 
   // --- optimistic writes; any failure → full reload to resync ---
 
-  async add(title: string): Promise<void> {
+  async add(title: string): Promise<string> {
     title = title.trim();
-    if (!title) return;
+    if (!title) return "";
     const first = this.items.find((t) => !t.done);
     const order = (first?.order ?? 0) - 1;
     const tmpId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -160,6 +160,7 @@ export class Store {
       this.drop(tmpId);
       this.upsert(created);
       this.emit();
+      return created.id;
     } catch (err) {
       this.pendingCreates.delete(tmpId);
       this.drop(tmpId);
@@ -214,6 +215,20 @@ export class Store {
     const t = this.get(id);
     if (!t || t.today === val) return Promise.resolve();
     return this.patch(id, { today: val });
+  }
+
+  // Drag-reorder: set `order` so the item lands between prev and next (by id).
+  placeBetween(id: string, prevId: string | null, nextId: string | null): Promise<void> {
+    const t = this.get(id);
+    if (!t) return Promise.resolve();
+    const prev = prevId ? this.get(prevId) : null;
+    const next = nextId ? this.get(nextId) : null;
+    let order: number;
+    if (prev && next) order = (prev.order + next.order) / 2;
+    else if (prev) order = prev.order + 1;
+    else if (next) order = next.order - 1;
+    else return Promise.resolve();
+    return this.patch(id, { order });
   }
 
   // Cycle normal → high → urgent → normal.

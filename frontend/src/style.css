@@ -51,6 +51,10 @@ body {
   margin: 0 auto;
   padding: max(12px, env(safe-area-inset-top)) 16px calc(56px + env(safe-area-inset-bottom));
 }
+/* Expanded dock overlays the bottom — pad so the list scrolls clear of it. */
+body.dock-open #app {
+  padding-bottom: calc(48vh + env(safe-area-inset-bottom));
+}
 
 header {
   display: flex;
@@ -123,7 +127,7 @@ ul.list.empty::after {
 }
 li.todo {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: start;
   gap: 10px;
   padding: 10px 6px;
@@ -298,6 +302,29 @@ li.todo.done .today-btn {
   display: none;
 }
 
+/* Reorder handle: grab immediately, no long-press. touch-action:none so the
+   browser doesn't scroll instead of dragging on touch. */
+li.todo .handle {
+  align-self: center;
+  border: none;
+  background: none;
+  color: var(--muted);
+  opacity: 0.5;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: grab;
+  touch-action: none;
+}
+li.todo.dragging {
+  opacity: 0.9;
+  background: var(--base02);
+  cursor: grabbing;
+}
+li.todo.done .handle {
+  display: none;
+}
+
 /* --- bottom dock: Today + Done tabs --- */
 .dock {
   position: fixed;
@@ -310,10 +337,6 @@ li.todo.done .today-btn {
   border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 10;
-}
-.dock.drop-target {
-  outline: 1px dashed var(--accent);
-  outline-offset: -1px;
 }
 .tabbar {
   display: flex;

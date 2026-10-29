@@ -100,6 +100,8 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     todayUl.style.display = activeTab === "today" ? "" : "none";
     doneGroups.style.display = activeTab === "done" ? "" : "none";
     chev.textContent = dockOpen ? "▾" : "▴";
+    // Widen page bottom padding when expanded so the list can scroll above the dock.
+    document.body.classList.toggle("dock-open", dockOpen);
   }
   function selectTab(tab: "today" | "done"): void {
     if (activeTab === tab) dockOpen = !dockOpen;
@@ -121,27 +123,6 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     render();
   });
 
-  // Drag a row onto the dock → Today; onto the backlog → recall.
-  const dropId = (e: DragEvent): string => e.dataTransfer?.getData("text/plain") ?? "";
-  const allowDrop = (e: DragEvent): void => e.preventDefault();
-  dock.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    dock.classList.add("drop-target");
-  });
-  dock.addEventListener("dragleave", () => dock.classList.remove("drop-target"));
-  dock.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dock.classList.remove("drop-target");
-    const id = dropId(e);
-    if (id) run(store.setToday(id, true));
-  });
-  list.addEventListener("dragover", allowDrop);
-  list.addEventListener("drop", (e) => {
-    e.preventDefault();
-    const id = dropId(e);
-    if (id) run(store.setToday(id, false));
-  });
-
   root.append(
     h("header", {}, h("h1", {}, "todo"), h("div", { class: "actions" }, sortBtn, logoutBtn)),
     addForm,
@@ -158,6 +139,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
 
   let selected: string | null = null;
   let editing: string | null = null;
+  let dragging = false;
   const rows = new Map<string, HTMLLIElement>();
 
   const flash = (err: unknown) => {
@@ -174,7 +156,11 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     e.preventDefault();
     const title = addInput.value;
     addInput.value = "";
-    run(store.add(title));
+    // Select the new row so it scrolls into view (handy when sort drops it far down).
+    store
+      .add(title)
+      .then((id) => id && select(id))
+      .catch(flash);
   });
 
   function row(t: Todo): HTMLLIElement {
@@ -208,15 +194,17 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     const del = h("button", { class: "del", type: "button", "aria-label": "delete" }, "×");
     del.addEventListener("click", () => run(store.remove(t.id)));
 
+    const handle = h("button", { class: "handle", type: "button", "aria-label": "reorder", tabindex: "-1" }, "⠿");
+    handle.addEventListener("pointerdown", (e) => startDrag(e, t.id, li));
+
     const li = h(
       "li",
       { class: "todo", "data-id": t.id },
       check,
       h("div", { class: "main" }, title, h("div", { class: "meta" }, prio, todayBtn, late, due, repeat)),
+      handle,
       del,
     );
-    li.draggable = true;
-    li.addEventListener("dragstart", (e) => e.dataTransfer?.setData("text/plain", t.id));
     li.addEventListener("pointerdown", () => select(t.id));
     return li;
   }
@@ -319,6 +307,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
   }
 
   function render(): void {
+    if (dragging) return; // don't fight the live DOM reorder mid-drag
     const present = new Set<string>();
     const back = store.backlog();
     renderInto(list, back, present);
@@ -366,6 +355,59 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
       return;
     }
     run(store.move(selected, dir));
+  }
+
+  // Pointer drag-reorder from the row handle. Immediate start, touch + mouse.
+  // Today is always reorderable; the backlog only in manual sort.
+  function startDrag(e: PointerEvent, id: string, li: HTMLLIElement): void {
+    const t = store.get(id);
+    const ul = li.parentElement;
+    if (!t || !ul || t.done) return;
+    const inToday = t.today;
+    if (!inToday && store.sortMode !== "manual") {
+      note("switch to manual sort (s) to reorder");
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    const handle = e.currentTarget as HTMLElement;
+    handle.setPointerCapture(e.pointerId);
+    dragging = true;
+    li.classList.add("dragging");
+    select(id);
+
+    const onMove = (ev: PointerEvent): void => {
+      const y = ev.clientY;
+      const sibs = Array.from(ul.querySelectorAll<HTMLLIElement>(":scope > li.todo")).filter((s) => s !== li);
+      let before: HTMLLIElement | null = null;
+      for (const s of sibs) {
+        const r = s.getBoundingClientRect();
+        if (y < r.top + r.height / 2) {
+          before = s;
+          break;
+        }
+      }
+      if (before) ul.insertBefore(li, before);
+      else ul.appendChild(li);
+    };
+    const end = (): void => {
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", end);
+      handle.removeEventListener("pointercancel", end);
+      try {
+        handle.releasePointerCapture(e.pointerId);
+      } catch {
+        /* already released */
+      }
+      li.classList.remove("dragging");
+      dragging = false;
+      const prevId = (li.previousElementSibling as HTMLElement | null)?.getAttribute("data-id") ?? null;
+      const nextId = (li.nextElementSibling as HTMLElement | null)?.getAttribute("data-id") ?? null;
+      run(store.placeBetween(id, prevId, nextId));
+    };
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
   }
 
   function startEdit(id: string): void {
@@ -491,5 +533,6 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     document.removeEventListener("keydown", onKey);
     clearInterval(tick);
     unsub();
+    document.body.classList.remove("dock-open");
   };
 }
