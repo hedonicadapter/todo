@@ -176,6 +176,10 @@ form.add input {
   margin: 0;
   border-top: none;
 }
+.frame.drop {
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+}
 form.add input::placeholder {
   color: var(--muted);
   letter-spacing: 0.08em;
@@ -395,6 +399,7 @@ li.todo.dragging {
   opacity: 0.9;
   outline: 1px dashed var(--base04);
   cursor: grabbing;
+  pointer-events: none; /* let elementFromPoint see the drop zone beneath */
 }
 li.todo.done .handle {
   display: none;
@@ -434,6 +439,10 @@ li.todo.done .handle {
 .tabbar .tab.active {
   background: var(--base05);
   color: var(--base00);
+}
+.tabbar .tab.drop {
+  background: var(--accent);
+  color: var(--base07);
 }
 .tabbar .chev {
   border: none;

@@ -395,16 +395,31 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     } catch {
       /* best-effort; document listeners below are the real path */
     }
+    const fromToday = t.today;
     dragging = true;
-    li.classList.add("dragging");
+    li.classList.add("dragging"); // also sets pointer-events:none so elementFromPoint sees through
+    let dropZone: "today" | "backlog" | null = null;
+
+    const clearHighlights = (): void => {
+      todayTab.classList.remove("drop");
+      listFrame.classList.remove("drop");
+    };
 
     const onMove = (ev: PointerEvent): void => {
-      const y = ev.clientY;
+      const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
+      const overToday = !!el && (el.closest(".today-list") !== null || el.closest(".tab") === todayTab);
+      const overBacklog = !!el && el.closest(".frame") !== null;
+      // Cross-list: backlog→Today, or Today→backlog. Otherwise reorder in place.
+      dropZone = !fromToday && overToday ? "today" : fromToday && overBacklog ? "backlog" : null;
+      todayTab.classList.toggle("drop", dropZone === "today");
+      listFrame.classList.toggle("drop", dropZone === "backlog");
+      if (dropZone) return;
+
       const sibs = Array.from(ul.querySelectorAll<HTMLLIElement>(":scope > li.todo")).filter((s) => s !== li);
       let before: HTMLLIElement | null = null;
       for (const s of sibs) {
         const r = s.getBoundingClientRect();
-        if (y < r.top + r.height / 2) {
+        if (ev.clientY < r.top + r.height / 2) {
           before = s;
           break;
         }
@@ -412,14 +427,32 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
       if (before) ul.insertBefore(li, before);
       else ul.appendChild(li);
     };
+
     const end = (): void => {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", end);
       document.removeEventListener("pointercancel", end);
+      clearHighlights();
       li.classList.remove("dragging");
       dragging = false;
-      if (!t.today && store.sortMode !== "manual") {
-        // Dragging the backlog switches it to manual, keeping what's on screen.
+
+      if (dropZone === "today") {
+        if (activeTab !== "today" || !dockOpen) {
+          activeTab = "today";
+          dockOpen = true;
+          ls.set(DOCK_TAB, "today");
+          ls.set(DOCK_OPEN, "1");
+          syncDock();
+        }
+        run(store.setToday(id, true));
+        return;
+      }
+      if (dropZone === "backlog") {
+        run(store.setToday(id, false));
+        return;
+      }
+      // Reorder within the origin list.
+      if (!fromToday && store.sortMode !== "manual") {
         const ids = Array.from(ul.querySelectorAll<HTMLElement>(":scope > li.todo"))
           .map((el) => el.getAttribute("data-id"))
           .filter((x): x is string => !!x);
@@ -432,6 +465,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
         run(store.placeBetween(id, prevId, nextId));
       }
     };
+
     // Listen on document so a mouse that leaves the small handle still drives it.
     document.addEventListener("pointermove", onMove);
     document.addEventListener("pointerup", end);
