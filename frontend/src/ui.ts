@@ -25,7 +25,7 @@ export function renderLogin(root: HTMLElement): void {
     required: "",
   });
   const error = h("p", { class: "error", role: "alert" });
-  const form = h("form", { class: "login" }, h("h1", {}, "todo"), email, password, h("button", {}, "sign in"), error);
+  const form = h("form", { class: "login" }, h("h1", {}, "todo"), email, password, h("button", {}, "[ SIGN IN ]"), error);
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     error.textContent = "";
@@ -59,20 +59,20 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     },
   };
 
-  const addInput = h("input", { placeholder: "new todo", autocomplete: "off", enterkeyhint: "done" });
-  const addForm = h("form", { class: "add" }, addInput);
+  const addInput = h("input", { placeholder: "NEW TODO", autocomplete: "off", enterkeyhint: "done" });
+  const addForm = h("form", { class: "add" }, h("span", { class: "prompt" }, ">"), addInput);
   const list = h("ul", { class: "list" }); // backlog
   const status = h("p", { class: "status", role: "status" });
 
   const sortBtn = h("button", { class: "ghost sort", type: "button" });
-  const sortLabel = () => (sortBtn.textContent = `sort: ${store.sortMode}`);
+  const sortLabel = () => (sortBtn.textContent = `[ SORT: ${store.sortMode.toUpperCase()} ]`);
   sortLabel();
   sortBtn.addEventListener("click", () => {
     store.cycleSort();
     sortLabel();
   });
 
-  const logoutBtn = h("button", { class: "ghost", type: "button" }, "sign out");
+  const logoutBtn = h("button", { class: "ghost", type: "button" }, "[ SIGN OUT ]");
   logoutBtn.addEventListener("click", logout);
 
   // --- bottom dock: Today + Done tabs ---
@@ -123,7 +123,10 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     render();
   });
 
+  const ptr = h("div", { class: "ptr" }, "↓ PULL TO REFRESH");
+
   root.append(
+    ptr,
     h("header", {}, h("h1", {}, "todo"), h("div", { class: "actions" }, sortBtn, logoutBtn)),
     addForm,
     list,
@@ -159,13 +162,24 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     // Select the new row so it scrolls into view (handy when sort drops it far down).
     store
       .add(title)
-      .then((id) => id && select(id))
+      .then((id) => {
+        if (!id) return;
+        select(id);
+        const li = rows.get(id);
+        if (li) {
+          li.classList.add("enter");
+          li.addEventListener("animationend", () => li.classList.remove("enter"), { once: true });
+        }
+      })
       .catch(flash);
   });
 
   function row(t: Todo): HTMLLIElement {
-    const check = h("input", { type: "checkbox", "aria-label": "done" });
-    check.addEventListener("change", () => run(store.toggle(t.id)));
+    const check = h("button", { class: "check", type: "button", "aria-label": "done" });
+    check.addEventListener("click", (e) => {
+      e.stopPropagation();
+      run(store.toggle(t.id));
+    });
 
     const title = h("span", { class: "title" });
     title.addEventListener("click", () => startEdit(t.id));
@@ -232,8 +246,10 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     if (todayBtn.textContent !== tglyph) todayBtn.textContent = tglyph;
     todayBtn.title = inToday ? "return to backlog" : "send to today";
 
-    const check = li.querySelector<HTMLInputElement>("input[type=checkbox]")!;
-    if (check.checked !== t.done) check.checked = t.done;
+    const check = li.querySelector<HTMLButtonElement>(".check")!;
+    // Repeating todos use round ( ) brackets; one-offs use square [ ].
+    const glyph = t.repeat ? (t.done ? "(x)" : "( )") : t.done ? "[x]" : "[ ]";
+    if (check.textContent !== glyph) check.textContent = glyph;
     check.title = t.repeat ? `done for now → next ${describeRule(t.repeat)}` : "";
 
     if (editing !== t.id) {
@@ -522,6 +538,66 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     e.preventDefault();
   }
 
+  // Pull-to-refresh: a standalone PWA has no browser reload. Pull down at the
+  // top past a threshold → re-fetch. Not while dragging a row or on a handle.
+  const ac = new AbortController();
+  const PTR_MAX = 90;
+  const PTR_TRIP = 70;
+  let ptrY = 0;
+  let ptrOn = false;
+  let ptrDist = 0;
+  document.addEventListener(
+    "touchstart",
+    (e) => {
+      const tgt = e.target as HTMLElement | null;
+      ptrOn = !dragging && window.scrollY <= 0 && e.touches.length === 1 && !tgt?.closest(".handle");
+      ptrY = e.touches[0]?.clientY ?? 0;
+      ptrDist = 0;
+      ptr.classList.add("pulling");
+    },
+    { passive: true, signal: ac.signal },
+  );
+  document.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!ptrOn || dragging) return;
+      const dy = (e.touches[0]?.clientY ?? 0) - ptrY;
+      if (dy <= 0 || window.scrollY > 0) {
+        ptrDist = 0;
+        ptr.style.height = "0";
+        ptr.classList.remove("ready");
+        return;
+      }
+      e.preventDefault(); // suppress native overscroll so our indicator shows
+      ptrDist = Math.min(dy * 0.5, PTR_MAX);
+      ptr.style.height = `${ptrDist}px`;
+      const ready = ptrDist >= PTR_TRIP;
+      ptr.classList.toggle("ready", ready);
+      ptr.textContent = ready ? "↻ RELEASE TO REFRESH" : "↓ PULL TO REFRESH";
+    },
+    { passive: false, signal: ac.signal },
+  );
+  document.addEventListener(
+    "touchend",
+    () => {
+      ptr.classList.remove("pulling");
+      if (!ptrOn) return;
+      ptrOn = false;
+      if (ptrDist >= PTR_TRIP) {
+        ptr.textContent = "↻ REFRESHING";
+        ptr.style.height = "34px";
+        run(store.load()).finally(() => {
+          ptr.style.height = "0";
+          ptr.classList.remove("ready");
+        });
+      } else {
+        ptr.style.height = "0";
+        ptr.classList.remove("ready");
+      }
+    },
+    { passive: true, signal: ac.signal },
+  );
+
   document.addEventListener("keydown", onKey);
   const unsub = store.onChange(render);
   render();
@@ -533,6 +609,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     document.removeEventListener("keydown", onKey);
     clearInterval(tick);
     unsub();
+    ac.abort();
     document.body.classList.remove("dock-open");
   };
 }

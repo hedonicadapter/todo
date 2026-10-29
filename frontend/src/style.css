@@ -32,6 +32,8 @@
   --danger: var(--base08);
   --sel: var(--base02);
   --radius: 1px;
+  --ease: cubic-bezier(0, 0, 0.58, 1); /* hyprland myBezier */
+  --ease-back: cubic-bezier(0.34, 1.56, 0.64, 1); /* hyprland easeOutBack */
   font-family: "Mx437", ui-monospace, SFMono-Regular, Menlo, "Cascadia Mono", monospace;
   font-size: 16px;
 }
@@ -60,7 +62,9 @@ header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 8px 0 12px;
+  margin: 8px 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
 }
 header .actions {
   display: flex;
@@ -71,7 +75,8 @@ h1 {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
-  letter-spacing: 0;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 button {
@@ -87,6 +92,11 @@ button.ghost {
   border-color: transparent;
   color: var(--muted);
   padding: 2px 6px;
+  letter-spacing: 0.05em;
+  transition: color 120ms var(--ease);
+}
+button.ghost:hover {
+  color: var(--fg);
 }
 button:focus-visible,
 input:focus-visible {
@@ -101,15 +111,27 @@ input {
   border: none;
 }
 
-form.add input {
-  width: 100%;
+form.add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
   background: var(--base01);
+}
+form.add .prompt {
+  color: var(--accent);
+  font-weight: bold;
+}
+form.add input {
+  flex: 1;
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 form.add input::placeholder {
   color: var(--muted);
+  letter-spacing: 0.08em;
 }
 
 ul.list {
@@ -119,11 +141,12 @@ ul.list {
   border-top: 1px solid var(--line);
 }
 ul.list.empty::after {
-  content: "nothing to do";
+  content: "— NOTHING TO DO —";
   display: block;
   padding: 24px 0;
   color: var(--muted);
   text-align: center;
+  letter-spacing: 0.1em;
 }
 li.todo {
   display: grid;
@@ -133,48 +156,26 @@ li.todo {
   padding: 10px 6px;
   border-bottom: 1px solid var(--line);
   border-radius: var(--radius);
-  transition: transform 80ms ease-out;
-  touch-action: pan-y;
-}
-li.todo.selected {
-  background: var(--sel);
-}
-li.todo.selected .title {
-  color: var(--base07);
+  transition: background-color 140ms var(--ease);
 }
 li.todo.pending {
   opacity: 0.6;
 }
-li.todo input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  margin: 3px 0 0;
-  border: 1px solid var(--base04);
-  border-radius: var(--radius);
-  background: transparent;
+/* ASCII checkbox: [ ]/[x] one-off, ( )/(x) repeating. */
+li.todo .check {
+  align-self: start;
+  margin-top: 1px;
+  border: none;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  line-height: 1.4;
+  padding: 0;
   cursor: pointer;
-  position: relative;
+  white-space: pre;
 }
-li.todo input[type="checkbox"]:checked {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-li.todo input[type="checkbox"]:checked::after {
-  content: "";
-  position: absolute;
-  left: 4px;
-  top: 1px;
-  width: 4px;
-  height: 8px;
-  border: solid var(--base07);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-/* Repeating: square like the rest, cued by a teal border instead of a round shape. */
-li.todo.repeating input[type="checkbox"] {
-  border-color: var(--base0c);
+li.todo.done .check {
+  color: var(--muted);
 }
 li.todo .main {
   min-width: 0;
@@ -229,7 +230,13 @@ li.todo .repeat {
 li.todo.repeating .repeat {
   color: var(--fg);
 }
-/* Priority: flag in meta. Faint when normal, coloured when raised. */
+/* Priority: tint the whole row, plus a coloured flag in meta. */
+li.todo.prio-high {
+  background: color-mix(in srgb, var(--base09) 12%, transparent);
+}
+li.todo.prio-urgent {
+  background: color-mix(in srgb, var(--base08) 16%, transparent);
+}
 li.todo .prio {
   border: none;
   padding: 0;
@@ -263,6 +270,27 @@ li.todo.late {
 }
 li.todo.late .due {
   color: var(--danger);
+}
+/* Inverse-video selection (classic TUI) — overrides priority tint. */
+li.todo.selected {
+  background: var(--base05);
+  color: var(--base00);
+}
+li.todo.selected .title,
+li.todo.selected .meta,
+li.todo.selected .check,
+li.todo.selected .prio,
+li.todo.selected .today-btn,
+li.todo.selected .handle,
+li.todo.selected .del,
+li.todo.selected .repeat,
+li.todo.selected .due,
+li.todo.selected .late-pill {
+  color: var(--base00);
+  opacity: 1;
+}
+li.todo.selected .late-pill {
+  background: transparent;
 }
 li.todo .del {
   border: none;
@@ -318,7 +346,7 @@ li.todo .handle {
 }
 li.todo.dragging {
   opacity: 0.9;
-  background: var(--base02);
+  outline: 1px dashed var(--base04);
   cursor: grabbing;
 }
 li.todo.done .handle {
@@ -334,7 +362,7 @@ li.todo.done .handle {
   margin: 0 auto;
   max-width: 560px;
   background: var(--base01);
-  border-top: 1px solid var(--line);
+  border-top: 3px double var(--line);
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 10;
 }
@@ -349,11 +377,16 @@ li.todo.done .handle {
   padding: 9px 12px;
   color: var(--muted);
   text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   cursor: pointer;
+  transition:
+    background-color 140ms var(--ease),
+    color 140ms var(--ease);
 }
 .tabbar .tab.active {
-  color: var(--fg);
-  box-shadow: inset 0 2px 0 var(--accent);
+  background: var(--base05);
+  color: var(--base00);
 }
 .tabbar .chev {
   border: none;
@@ -362,13 +395,15 @@ li.todo.done .handle {
   cursor: pointer;
 }
 .dock .panel {
-  display: none;
-  padding: 0 16px 10px;
-  max-height: 45vh;
-  overflow-y: auto;
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 16px;
+  transition: max-height 240ms var(--ease);
 }
 .dock.open .panel {
-  display: block;
+  max-height: 45vh;
+  overflow-y: auto;
+  padding-bottom: 10px;
 }
 .dock .list {
   margin: 0;
@@ -380,6 +415,40 @@ li.todo.done .handle {
   letter-spacing: 0.08em;
   color: var(--muted);
   padding: 10px 2px 2px;
+}
+
+/* Pull-to-refresh indicator (height driven from JS while pulling). */
+.ptr {
+  height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  transition: height 180ms var(--ease);
+}
+.ptr.pulling {
+  transition: none;
+}
+.ptr.ready {
+  color: var(--accent);
+}
+
+/* New-item pop-in, using the hyprland overshoot curve. */
+@keyframes popin {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scaleY(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+li.todo.enter {
+  animation: popin 220ms var(--ease-back);
 }
 
 form.login {
