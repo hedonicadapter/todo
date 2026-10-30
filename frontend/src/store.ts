@@ -125,7 +125,7 @@ export class Store {
 
   // --- optimistic writes; any failure → full reload to resync ---
 
-  async add(title: string): Promise<string> {
+  async add(title: string, today = false): Promise<string> {
     title = title.trim();
     if (!title) return "";
     const first = this.items.find((t) => !t.done);
@@ -141,7 +141,7 @@ export class Store {
       due: "",
       order,
       priority: 0,
-      today: false,
+      today,
       completed: "",
       owner: authId(),
       repeat: "",
@@ -153,7 +153,7 @@ export class Store {
         done: false,
         order,
         priority: 0,
-        today: false,
+        today,
         owner: authId(),
       });
       this.pendingCreates.delete(tmpId);

@@ -103,6 +103,8 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     addForm,
   );
 
+  // Expanded Today tab → new todos land in Today.
+  const addsToToday = () => dockOpen && activeTab === "today";
   function syncDock(): void {
     dock.classList.toggle("open", dockOpen);
     todayTab.classList.toggle("active", activeTab === "today");
@@ -110,6 +112,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     todayUl.style.display = activeTab === "today" ? "" : "none";
     doneGroups.style.display = activeTab === "done" ? "" : "none";
     chev.textContent = dockOpen ? "▾" : "▴";
+    addInput.placeholder = addsToToday() ? "NEW TODO TODAY" : "NEW TODO";
     // Widen page bottom padding when expanded so the list can scroll above the dock.
     document.body.classList.toggle("dock-open", dockOpen);
   }
@@ -170,7 +173,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     addInput.value = "";
     // Select the new row so it scrolls into view (handy when sort drops it far down).
     store
-      .add(title)
+      .add(title, addsToToday())
       .then((id) => {
         if (!id) return;
         select(id);
