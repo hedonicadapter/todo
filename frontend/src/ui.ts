@@ -167,6 +167,24 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
     setTimeout(() => (status.textContent = ""), 2500);
   };
 
+  const copyText = (text: string) => {
+    // Clipboard API needs secure context; fall back to execCommand.
+    const fallback = () => {
+      const ta = h("textarea", { readonly: "" });
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.append(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      note(ok ? "copied" : "copy failed");
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(() => note("copied"), fallback);
+    } else fallback();
+  };
+
   addForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const title = addInput.value;
@@ -217,6 +235,12 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
       run(store.toggleToday(t.id));
     });
 
+    const copy = h("button", { class: "copy-btn", type: "button", "aria-label": "copy", title: "copy text" }, "⧉");
+    copy.addEventListener("click", (e) => {
+      e.stopPropagation();
+      copyText(store.get(t.id)?.title ?? t.title);
+    });
+
     const del = h("button", { class: "del", type: "button", "aria-label": "delete" }, "×");
     del.addEventListener("click", () => run(store.remove(t.id)));
 
@@ -227,7 +251,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
       "li",
       { class: "todo", "data-id": t.id },
       check,
-      h("div", { class: "main" }, title, h("div", { class: "meta" }, prio, todayBtn, late, due, repeat)),
+      h("div", { class: "main" }, title, h("div", { class: "meta" }, prio, todayBtn, copy, late, due, repeat)),
       handle,
       del,
     );

@@ -332,6 +332,7 @@ li.todo.selected .meta,
 li.todo.selected .check,
 li.todo.selected .prio,
 li.todo.selected .today-btn,
+li.todo.selected .copy-btn,
 li.todo.selected .handle,
 li.todo.selected .del,
 li.todo.selected .repeat,
@@ -379,6 +380,19 @@ li.todo.in-today .today-btn {
 }
 li.todo.done .today-btn {
   display: none;
+}
+
+li.todo .copy-btn {
+  border: none;
+  padding: 0 2px;
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--muted);
+  opacity: 0.5;
+  cursor: pointer;
+}
+li.todo .copy-btn:hover {
+  opacity: 1;
 }
 
 /* Reorder handle: grab immediately, no long-press. touch-action:none so the
