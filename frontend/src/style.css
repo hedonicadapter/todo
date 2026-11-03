@@ -67,12 +67,29 @@ body.dock-open #app {
   padding-bottom: calc(55vh + env(safe-area-inset-bottom));
 }
 
+/* Sticky top: header + backlog legend. ::before paints over the safe-area
+   gap above the stuck block so rows don't peek through. */
+.top {
+  position: sticky;
+  top: max(12px, env(safe-area-inset-top));
+  z-index: 5;
+  background: var(--bg);
+}
+.top::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: max(12px, env(safe-area-inset-top));
+  background: var(--bg);
+}
 header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 8px 0 10px;
-  padding-bottom: 8px;
+  margin: 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
 header .actions {
@@ -155,12 +172,19 @@ form.add input {
   border: none;
 }
 
-/* TUI window frame with a legend breaking the top border. */
+/* TUI window frame with a legend breaking the top border. The top border
+   lives in .frame-head (inside the sticky block); .frame supplies the rest. */
+.frame-head {
+  position: relative;
+  margin-top: 18px; /* 10px header gap + legend half-height */
+  height: 1px;
+  background: var(--line);
+}
 .frame {
   position: relative;
-  margin-top: 16px;
   padding: 8px 8px 2px;
   border: 1px solid var(--line);
+  border-top: none;
 }
 .frame-label {
   position: absolute;

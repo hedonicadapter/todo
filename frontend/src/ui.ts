@@ -69,7 +69,7 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
   );
   const list = h("ul", { class: "list" }); // backlog
   const listFrameLabel = h("span", { class: "frame-label" }, "BACKLOG");
-  const listFrame = h("div", { class: "frame" }, listFrameLabel, list);
+  const listFrame = h("div", { class: "frame" }, list);
   const status = h("p", { class: "status", role: "status" });
 
   const sortBtn = h("button", { class: "ghost sort", type: "button" });
@@ -138,9 +138,18 @@ export function renderApp(root: HTMLElement, store: Store): () => void {
 
   const ptr = h("div", { class: "ptr" }, "↓ PULL TO REFRESH");
 
+  // Header + frame legend pin to the top; the frame's side borders scroll
+  // under the legend row, which draws the frame's top border.
+  const top = h(
+    "div",
+    { class: "top" },
+    h("header", {}, h("h1", {}, "todo"), h("div", { class: "actions" }, sortBtn, logoutBtn)),
+    h("div", { class: "frame-head" }, listFrameLabel),
+  );
+
   root.append(
     ptr,
-    h("header", {}, h("h1", {}, "todo"), h("div", { class: "actions" }, sortBtn, logoutBtn)),
+    top,
     listFrame,
     status,
     h(
